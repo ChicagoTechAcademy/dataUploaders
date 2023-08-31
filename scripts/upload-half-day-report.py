@@ -63,7 +63,7 @@ def deleteOldDataFromDB(client, min_date, max_date):
     DECLARE end_date DATE DEFAULT '{max_date}';
 
     -- Delete data between the specified dates
-    DELETE FROM `chitechdb.attendance.half-day-report`
+    DELETE FROM `chitechdb.{table_id}`
     WHERE date >= start_date AND date <= end_date AND sy="SY24";
     """.format(
         project_id, dataset_id

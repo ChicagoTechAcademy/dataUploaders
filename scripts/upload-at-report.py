@@ -27,6 +27,11 @@ column_mappings = {
     "Student > YOG": "yog",
 }
 
+def renameColumns(df):
+    # Rename the columns that need renaming
+    for old_col, new_col in column_mappings.items():
+        if old_col in df.columns and new_col not in df.columns:
+            df.rename(columns={old_col: new_col}, inplace=True)
 
 def deleteOldDataFromDB(client, min_date, max_date):
     query = f"""
@@ -76,8 +81,33 @@ def get_semester(date):
     return ""
 
 
+# Send the DataFrame to BigQuery
+def uploadToBigQuery(df):
+    pandas_gbq.to_gbq(
+        df,
+        destination_table=table_id,
+        project_id=project_id,
+        if_exists="append",
+        table_schema=[
+            {"name": "name", "type": "STRING"},
+            {"name": "id", "type": "INTEGER"},
+            {"name": "date", "type": "DATE"},
+            {"name": "code", "type": "STRING"},
+            {"name": "course", "type": "STRING"},
+            {"name": "class", "type": "STRING"},
+            {"name": "period", "type": "STRING"},
+            {"name": "tardy", "type": "BOOLEAN"},
+            {"name": "absent", "type": "BOOLEAN"},
+            {"name": "yog", "type": "INTEGER"},
+            {"name": "sy", "type": "STRING"},
+            {"name": "semester", "type": "STRING"},
+        ],
+        progress_bar=True,
+    )
+
+
 # Function to get today's date and move the file to done&uploaded folder
-def moveFileToUseFileFolder():
+def moveSourceFileToUsedFolder():
     # Generate the new file name with the date
     current_date = datetime.now().strftime("%Y-%m-%d")
     new_file_name = f"at-report-{current_date}.csv"
@@ -115,10 +145,7 @@ if csv_files:
         # Remove empty rows from the DataFrame
         df = df.dropna(how="all")
 
-        # Rename the columns that need renaming
-        for old_col, new_col in column_mappings.items():
-            if old_col in df.columns and new_col not in df.columns:
-                df.rename(columns={old_col: new_col}, inplace=True)
+        renameColumns(df)
 
         df["date"] = df["date"].apply(convert_to_standard_date)
 
@@ -139,31 +166,11 @@ if csv_files:
         deleteOldDataFromDB(client, min_date, max_date)
 
         # Upload the DataFrame to BigQuery
-        pandas_gbq.to_gbq(
-            df,
-            destination_table=table_id,
-            project_id=project_id,
-            if_exists="append",
-            table_schema=[
-                {"name": "name", "type": "STRING"},
-                {"name": "id", "type": "INTEGER"},
-                {"name": "date", "type": "DATE"},
-                {"name": "code", "type": "STRING"},
-                {"name": "course", "type": "STRING"},
-                {"name": "class", "type": "STRING"},
-                {"name": "period", "type": "STRING"},
-                {"name": "tardy", "type": "BOOLEAN"},
-                {"name": "absent", "type": "BOOLEAN"},
-                {"name": "yog", "type": "INTEGER"},
-                {"name": "sy", "type": "STRING"},
-                {"name": "semester", "type": "STRING"},
-            ],
-            progress_bar=True,
-        )
+        uploadToBigQuery(df)
 
         print("Data uploaded to BigQuery table.")
 
-        moveFileToUseFileFolder()
+        moveSourceFileToUsedFolder()
     else:
         print("Failed to initialize BigQuery client.")
 

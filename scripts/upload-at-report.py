@@ -11,7 +11,7 @@ table_id = "attendance.at-report"
 
 # Specify the paths
 source_folder = "../dataUploaders/at-report"
-destination_folder = "../dataUploaders/done&uploaded"
+destination_folder = "../dataUploaders/archivedFiles"
 
 # Define the column name mappings
 column_mappings = {

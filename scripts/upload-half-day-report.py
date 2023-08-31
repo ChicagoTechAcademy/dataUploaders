@@ -11,7 +11,7 @@ table_id = "attendance.half-day-report"
 
 # Specify the paths
 source_folder = "../dataUploaders/half-day-report"
-destination_folder = "../dataUploaders/done&uploaded"
+destination_folder = "../dataUploaders/archivedFiles"
 
 
 # Initialize the BigQuery client

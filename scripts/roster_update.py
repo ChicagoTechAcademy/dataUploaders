@@ -8,10 +8,10 @@ from tqdm import tqdm
 # Define your GCP project ID and BigQuery dataset ID
 project_id = "chitechdb"
 dataset_id = "student_info"
-table_id = "student_info.allStudents"
+table_id = "student_info.roster"
 
 # Specify the paths
-source_folder = "../dataUploaders/allStudents"
+source_folder = "../dataUploaders/currRoster"
 destination_folder = "../dataUploaders/archivedFiles"
 
 # Define the column name mappings
@@ -21,12 +21,12 @@ column_mappings = {
     "DOB": "dob",
     "EnrStatus": "enrollment",
     "YOG": "yog",
-    "GraduationDate": "graduationDate",
 }
 
 
 def cleanData(df):
     df = df.drop(df.columns[16], axis=1)
+    df = df.drop(df.columns[15], axis=1)
     df = df.drop(df.columns[14], axis=1)
     df = df.drop(df.columns[13], axis=1)
     df = df.drop(df.columns[10], axis=1)
@@ -38,6 +38,8 @@ def cleanData(df):
     df = df.drop(df.columns[3], axis=1)
     df = df.drop(df.columns[2], axis=1)
 
+
+    print(df.columns)
     # Rename the columns that exist in the DataFrame and are specified in column_mappings
     for old_col, new_col in column_mappings.items():
         if old_col in df.columns:
@@ -48,7 +50,6 @@ def cleanData(df):
     df["yog"] = df["yog"].astype(int)
     df["enrollment"] = df["enrollment"].astype(str)
     df["dob"] = df["dob"].apply(convert_to_standard_date)
-    df["graduationDate"] = df["graduationDate"].apply(convert_to_standard_date)
     return df
 
 def convert_to_standard_date(date_str):
@@ -92,7 +93,6 @@ def uploadToBigQuery(df):
             {"name": "dob", "type": "DATE"},
             {"name": "enrollment", "type": "STRING"},
             {"name": "yog", "type": "INTEGER"},
-            {"name": "graduationDate", "type": "DATE"},
         ],
         progress_bar=True,
     )
@@ -102,7 +102,7 @@ def uploadToBigQuery(df):
 def moveSourceFileToUsedFolder():
     # Generate the new file name with the date
     current_date = datetime.now().strftime("%Y-%m-%d")
-    new_file_name = f"allStudents-{current_date}.csv"
+    new_file_name = f"currRoster-{current_date}.csv"
     destination_file_path = os.path.join(destination_folder, new_file_name)
 
     # Save the CSV file with the new name to the destination folder using pandas

@@ -3,33 +3,71 @@ import pandas as pd
 import pandas_gbq
 from google.cloud import bigquery
 from datetime import datetime
+from tqdm import tqdm
 
 # Define your GCP project ID and BigQuery dataset ID
 project_id = "chitechdb"
 dataset_id = "student_info"
-table_id = "attendance.allStudents"
+table_id = "student_info.allStudents"
 
 # Specify the paths
 source_folder = "../dataUploaders/allStudents"
 destination_folder = "../dataUploaders/archivedFiles"
 
 # Define the column name mappings
-# column_mappings = {
-#     "Student > Name": "name",
-#     "Student > Student ID": "id",
-#     "Date": "date",
-#     "Code": "code",
-#     "Master > Class": "course",
-#     "Master > Description": "class",
-#     "Period": "period",
-#     "Tardy?": "tardy",
-#     "Absent?": "absent",
-#     "Student > YOG": "yog",
-# }
+column_mappings = {
+    "Name": "name",
+    "Student ID": "id",
+    "DOB": "dob",
+    "EnrStatus": "enrollment",
+    "YOG": "yog",
+    "GraduationDate": "graduationDate",
+}
+
+
+def cleanData(df):
+    df = df.drop(df.columns[16], axis=1)
+    df = df.drop(df.columns[14], axis=1)
+    df = df.drop(df.columns[13], axis=1)
+    df = df.drop(df.columns[10], axis=1)
+    df = df.drop(df.columns[9], axis=1)
+    df = df.drop(df.columns[8], axis=1)
+    df = df.drop(df.columns[7], axis=1)
+    df = df.drop(df.columns[6], axis=1)
+    df = df.drop(df.columns[4], axis=1)
+    df = df.drop(df.columns[3], axis=1)
+    df = df.drop(df.columns[2], axis=1)
+
+    # Rename the columns that exist in the DataFrame and are specified in column_mappings
+    for old_col, new_col in column_mappings.items():
+        if old_col in df.columns:
+            df.rename(columns={old_col: new_col}, inplace=True)
+
+    df["name"] = df["name"].astype(str)
+    df["id"] = df["id"].astype(int)
+    df["yog"] = df["yog"].astype(int)
+    df["enrollment"] = df["enrollment"].astype(str)
+    df["dob"] = df["dob"].apply(convert_to_standard_date)
+    df["graduationDate"] = df["graduationDate"].apply(convert_to_standard_date)
+    return df
 
 
 def cleanData(df):
     print("Cleaning data...")
+
+
+def convert_to_standard_date(date_str):
+    # if date_str is null, return null
+    if pd.isnull(date_str):
+        return None
+
+    month, day, year = map(int, date_str.split("/"))
+    if year < 100:
+        if year >= 50:
+            year += 1900
+        else:
+            year += 2000
+    return f"{year:04d}-{month:02d}-{day:02d}"
 
 
 def deleteOldDataFromDB(client):
@@ -52,11 +90,11 @@ def uploadToBigQuery(df):
         df,
         destination_table=table_id,
         project_id=project_id,
-        if_exists="append",
+        if_exists="replace",
         table_schema=[
             {"name": "name", "type": "STRING"},
             {"name": "id", "type": "INTEGER"},
-            {"name": "DOB", "type": "DATE"},
+            {"name": "dob", "type": "DATE"},
             {"name": "enrollment", "type": "STRING"},
             {"name": "yog", "type": "INTEGER"},
             {"name": "graduationDate", "type": "DATE"},
@@ -64,11 +102,12 @@ def uploadToBigQuery(df):
         progress_bar=True,
     )
 
+
 # Function to get today's date and move the file to done&uploaded folder
 def moveSourceFileToUsedFolder():
     # Generate the new file name with the date
     current_date = datetime.now().strftime("%Y-%m-%d")
-    new_file_name = f"at-report-{current_date}.csv"
+    new_file_name = f"allStudents-{current_date}.csv"
     destination_file_path = os.path.join(destination_folder, new_file_name)
 
     # Save the CSV file with the new name to the destination folder using pandas
@@ -103,7 +142,7 @@ if csv_files:
         # Remove empty rows from the DataFrame
         df = df.dropna(how="all")
 
-        cleanData(df)
+        df = cleanData(df)
 
         # Delete the old data from the BigQuery table
         deleteOldDataFromDB(client)

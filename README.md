@@ -11,3 +11,10 @@ Completed:
 
 
 ToDo:
+- Create spreadsheets for Total and Weekly Average Daily Attendance
+- Create spreadsheets for FOCUS Tardy and Hall Sweeps
+- Create spreadsheet for Enrollment
+- Clean and Upload FOCUS Tardy
+- Clean and Upload FOCUS Hall Sweeps
+- Upload Classes Offered
+- Upload Grades

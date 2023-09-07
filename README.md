@@ -6,7 +6,7 @@ Completed:
 - Clean and Upload Schedule
 - Clean and Upload Total Average Daily Attendance
 - Clean and Upload Weekly Average Daily Attendance
-
+- Clean and Upload HighFive Data
 - Clean Daily Attendance Totals
 
 
@@ -18,3 +18,4 @@ ToDo:
 - Clean and Upload FOCUS Hall Sweeps
 - Upload Classes Offered
 - Upload Grades
+- Clean and Upload Data Quality

@@ -7,11 +7,12 @@ from datetime import datetime
 # Define your GCP project ID and BigQuery dataset ID
 project_id = "chitechdb"
 dataset_id = "behavior"
-table_id = "behavior.HF-Events"
+table_id = "behavior.HF-Referrals"
 
 # Specify the paths
-source_folder = "../dataUploaders/HF-Events"
+source_folder = "../dataUploaders/HF-ref"
 destination_folder = "../dataUploaders/archivedFiles"
+
 
 # Define the column name mappings
 column_mappings = {
@@ -22,22 +23,42 @@ column_mappings = {
     "race" : "race",
     "ethnicity" : "ethnicity",
     "gender" : "gender",
-    "event_group" : "event_group",
-    "event_type" : "event_type",
-    "class" : "class",
-    "teacher" : "teacher",
-    "is_resolved" : "is_resolved"
+    "name": "type",
+    "teacher_that_created": "teacher",
+    "teacher_that_resolved": "resolved_by",
+    "referral_comment": "referral_comment",
+    "is_resolved": "is_resolved",
+    "is_resolved_comment": "is_resolved_comment",
+    "referral_outcome_type_name": "referral_outcome_type_name",
 }
 
+
+# Add the 'yog' column based on the 'grade' column
+def calculate_yog(grade):
+    if grade == 9:
+        return 2027
+    elif grade == 10:
+        return 2026
+    elif grade == 11:
+        return 2025
+    elif grade == 12:
+        return 2024
+    else:
+        return None  # You can specify a default value if needed
+
 def cleanData(df):
-    df = df.drop(df.columns[13], axis=1)
+    df = df.drop(df.columns[10], axis=1)
     df = df.drop(df.columns[12], axis=1)
 
     # Rename the columns that need renaming
     for old_col, new_col in column_mappings.items():
         if old_col in df.columns and new_col not in df.columns:
             df.rename(columns={old_col: new_col}, inplace=True)
+
+    df['yog'] = df['grade'].apply(calculate_yog)
+    
     return df
+
 
 def deleteOldDataFromDB(client):
     query = f"""
@@ -102,7 +123,7 @@ def uploadToBigQuery(df):
 def moveSourceFileToUsedFolder():
     # Generate the new file name with the date
     current_date = datetime.now().strftime("%Y-%m-%d")
-    new_file_name = f"HF-event-{current_date}.csv"
+    new_file_name = f"HF-referral-{current_date}.csv"
     destination_file_path = os.path.join(destination_folder, new_file_name)
 
     # Save the CSV file with the new name to the destination folder using pandas
@@ -137,13 +158,7 @@ if csv_files:
         # Remove empty rows from the DataFrame
         df = df.dropna(how="all")
 
-        
-
         df = cleanData(df)
-
-        
-
-        
 
         # df["date"] = df["date"].apply(convert_to_standard_date)
 

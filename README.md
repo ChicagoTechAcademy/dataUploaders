@@ -10,6 +10,7 @@ Completed:
 - Clean Daily Attendance Totals
 
 
+
 ToDo:
 - Create spreadsheets for Total and Weekly Average Daily Attendance
 - Create spreadsheets for FOCUS Tardy and Hall Sweeps
@@ -19,3 +20,4 @@ ToDo:
 - Upload Classes Offered
 - Upload Grades
 - Clean and Upload Data Quality
+- Add Week to A/T

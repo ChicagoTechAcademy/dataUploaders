@@ -20,3 +20,6 @@ ToDo:
 - Clean and Upload Data Quality
 - Add Week A/T DB
 - Look into Zapier or other automation tools to refresh connected sheets on update
+- Transcript Audit
+
+- Add Week to FOCUS Tardy and HallSweep

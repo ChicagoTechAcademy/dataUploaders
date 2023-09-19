@@ -47,8 +47,10 @@ def calculate_yog(grade):
         return None  # You can specify a default value if needed
 
 def cleanData(df):
-    df = df.drop(df.columns[10], axis=1)
+    df = df.drop(df.columns[13], axis=1)
     df = df.drop(df.columns[12], axis=1)
+    df = df.drop(df.columns[10], axis=1)
+    
 
     # Rename the columns that need renaming
     for old_col, new_col in column_mappings.items():
@@ -109,16 +111,14 @@ def uploadToBigQuery(df):
             {"name" : "race","type": "STRING"},
             {"name" : "ethnicity","type": "STRING"},
             {"name" : "gender","type": "STRING"},
-            {"name" : "event_group","type": "STRING"},
-            {"name" : "event_type","type": "STRING"},
-            {"name" : "class","type": "STRING"},
+            {"name" : "type","type": "STRING"},
             {"name" : "teacher","type": "STRING"},
             {"name" : "is_resolved","type": "STRING"},
+            {"name" : "resolved_by","type": "STRING"},
+            {"name" : "yog","type": "INTEGER"},
         ],
         progress_bar=True,
     )
-
-
 # Function to get today's date and move the file to done&uploaded folder
 def moveSourceFileToUsedFolder():
     # Generate the new file name with the date

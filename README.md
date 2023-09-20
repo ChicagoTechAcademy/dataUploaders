@@ -14,6 +14,7 @@ Completed:
 - Create spreadsheet for Enrollment
 - Create spreadsheets for Total and Weekly Average Daily Attendance
 - Clean and Upload Student Account Balances
+- Clean and Upload Student Transcript Data
 
 ToDo:
 - Upload Classes Offered

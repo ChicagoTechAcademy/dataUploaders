@@ -15,9 +15,7 @@ archive_name = "accountBalances"
 
 # Desired column names
 column_names = [
-    "id", "date", "drop1", "dropLast", "type", "feeName", 
-    "drop2", "comment", "drop3", "drop4", "amountDue", 
-    "drop5", "drop6", "amountPaid", "drop7", "drop8", "balance"
+    "id", "balance", "drop1", "drop2", "drop3","drop4","drop5","drop6","drop7","drop8","drop9","drop10","drop11","drop12","drop13","drop14","drop15",
 ]
 
 def fetch_roster_data(ids):
@@ -33,65 +31,52 @@ def fetch_roster_data(ids):
 def clean_data(df):
     print("Cleaning data...")
 
+    # Rename columns
     df.columns = column_names
 
-    current_student_id = None
-    for index, row in df.iterrows():
-        if "Student ID:" in str(row["id"]):
-            current_student_id = row["dropLast"]
-        elif pd.isna(row["id"]) and pd.notna(row["date"]):
-            df.at[index, "id"] = current_student_id
+    df = df.reset_index(drop=True)  # Reset index
+    current_id = None  # This will store the value from "drop2" whenever we find "Student ID:"
 
-    drop_columns = [f'drop{i}' for i in range(1, 9)] + ["dropLast"]
-    df.drop(columns=drop_columns, inplace=True, errors='ignore')
+    for index in range(len(df)):
+        if df.loc[index, 'id'] == 'Student ID:':
+            current_id = df.loc[index, 'drop2']
+        elif current_id is not None:
+            df.loc[index, 'id'] = current_id
+    
+    # Drop unwanted columns
+    df = df[['id', 'balance']]
 
-    df["comment"] = df["comment"].str.strip()
-    df["feeName"] = df["feeName"].str.strip()
-    df["type"] = df["type"].str.strip()
+    # Filter rows based on 'bal'
+    df = df[df['balance'].str.startswith('This is a current', na=False)]
 
-    df = df[~df["id"].str.contains("Student ID:", na=False)]
+    # Remove 'This is a current balance' from 'bal'
+    # This is a current statement of your account.  The total amount due is  $ 150.00  and is payable upon the indicated date.  
+    df['balance'] = df['balance'].str.replace('This is a current statement of your account.  The total amount due is  $ ', '')
+    df['balance'] = df['balance'].str.replace('  and is payable upon the indicated date.  ', '')
 
-    date_pattern = re.compile(r'\d{1,2}/\d{1,2}/\d{2,4}')
-    df = df[df["date"].str.match(date_pattern, na=False)]
-    df["date"] = df["date"].apply(convert_to_standard_date)
+    # Convert 'bal' to float
+    df['balance'] = df['balance'].astype(float)
 
-
-    # Fetch student information from roster
-    unique_ids = df["id"].dropna().unique()
+    print("Getting names and YOG from data base...")
+    # # Fetch student information from roster
+    unique_ids = df["id"].dropna().unique().astype(int)  # Convert IDs to integers
     roster_df = fetch_roster_data(unique_ids)
 
-    # Merge roster data to df based on 'id'
+    # # Merge roster data to df based on 'id'
     df = pd.merge(df, roster_df, on='id', how='left')
 
-    # Reorder columns
-    df = df[["name", "id", "yog", "date", "type", "feeName", "comment", "amountDue", "amountPaid", "balance"]]
+    # # Reorder columns
+    df = df[["name", "id", "yog", "balance"]]
 
-    df['amountDue'] = strip_dollar_sign_and_convert(df['amountDue'])
-    df['amountPaid'] = strip_dollar_sign_and_convert(df['amountPaid'])
-    df['balance'] = strip_dollar_sign_and_convert(df['balance'])
-
-
+    print("Merging data...")
     return df
 
-def convert_to_standard_date(date_str):
-    """
-    Converts date from MM/DD/YY format to YYYY-MM-DD.
-    Assumes all two-digit years from 00-21 refer to 2000-2021, and 22-99 refer to 1922-1999.
-    """
-    month, day, year = map(int, date_str.split("/"))
-    if 0 <= year <= 21:
-        year += 2000
-    elif 22 <= year <= 99:
-        year += 1900
-    return f"{year:04d}-{month:02d}-{day:02d}"
-
-def strip_dollar_sign_and_convert(column):
-    return pd.to_numeric(column.str.replace("$", "").str.strip(), errors='coerce')
 
 def delete_all_data_from_table():
     """
     Deletes all data from the specified BigQuery table.
     """
+    print("Deleting old data from database to override...")
     client = bigquery.Client(project=project_id)
     query = f"DELETE FROM `{table_id}` WHERE TRUE"
     client.query(query).result()  # Execute the DELETE query
@@ -111,15 +96,9 @@ def upload_to_big_query(df):
         {"name": "name", "type":"STRING"},
         {"name": "id", "type":"INTEGER"},
         {"name": "yog", "type":"INTEGER"},
-        {"name": "date", "type":"DATE"},
-        {"name": "type", "type":"STRING"},
-        {"name": "feeName", "type":"STRING"},
-        {"name": "comment", "type":"STRING"},
-        {"name": "amountDue", "type":"FLOAT"},
-        {"name": "amountPaid", "type":"FLOAT"},
         {"name": "balance", "type":"FLOAT"},
     ]
-
+    print("Uploading data to BigQuery...")
     # Upload the dataframe
     pandas_gbq.to_gbq(df, destination_table=table_id, project_id=project_id,
                       if_exists="append", progress_bar=True, table_schema=schema)

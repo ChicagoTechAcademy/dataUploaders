@@ -13,13 +13,14 @@ Completed:
 - Create spreadsheets for FOCUS Tardy and Hall Sweeps
 - Create spreadsheet for Enrollment
 - Create spreadsheets for Total and Weekly Average Daily Attendance
+- Clean and Upload Student Account Balances
 
 ToDo:
 - Upload Classes Offered
 - Upload Grades
 - Clean and Upload Data Quality
+- Add Week to FOCUS Tardy and HallSweep
 - Add Week A/T DB
 - Look into Zapier or other automation tools to refresh connected sheets on update
 - Transcript Audit
-
-- Add Week to FOCUS Tardy and HallSweep
+- Clean and Upload Medical Compliance

@@ -1,3 +1,4 @@
+from colorama import Fore
 import os
 import pandas as pd
 import pandas_gbq
@@ -47,7 +48,7 @@ def deleteOldDataFromDB(client, min_date, max_date):
 
     query_job = client.query(query)
     query_job.result()
-    print("Data deletion completed.")
+    print(Fore.BLUE + "Data deletion completed.")
 
 
 # Convert the "date" column to "YYYY-MM-DD" format
@@ -141,7 +142,7 @@ if csv_files:
     client = bigquery.Client(project=project_id)
 
     if client:
-        print("BigQuery client initialized.")
+        print(Fore.BLUE +"BigQuery client initialized.")
         # Remove empty rows from the DataFrame
         df = df.dropna(how="all")
 
@@ -168,11 +169,11 @@ if csv_files:
         # Upload the DataFrame to BigQuery
         uploadToBigQuery(df)
 
-        print("Data uploaded to BigQuery table.")
+        print(Fore.BLUE +"Data uploaded to BigQuery table.")
 
         moveSourceFileToUsedFolder()
     else:
-        print("Failed to initialize BigQuery client.")
+        print(Fore.RED +"Failed to initialize BigQuery client.")
 
 else:
-    print("No CSV files found in the 'at-report' folder.")
+    print(Fore.RED +"No CSV files found in the 'at-report' folder.")

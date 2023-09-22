@@ -25,3 +25,6 @@ ToDo:
 - Look into Zapier or other automation tools to refresh connected sheets on update
 - Transcript Audit
 - Clean and Upload Medical Compliance
+
+Add colored text to terminal commands https://www.studytonight.com/python-howtos/how-to-print-colored-text-in-python
+print(Fore.RED + 'This text is red in color')

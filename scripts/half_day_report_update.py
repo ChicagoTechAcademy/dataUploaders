@@ -1,3 +1,4 @@
+from colorama import Fore
 import os
 import pandas as pd
 import pandas_gbq
@@ -38,8 +39,6 @@ def renameColumns(df):
     for old_col, new_col in column_mappings.items():
         if old_col in df.columns and new_col not in df.columns:
             df.rename(columns={old_col: new_col}, inplace=True)
-            print(f"Success! Renamed {old_col} to {new_col}")
-
 
 def dropUnnecessaryColumns(df):
     # Drop columns that are not needed
@@ -73,7 +72,7 @@ def deleteOldDataFromDB(client, min_date, max_date):
     query_job = client.query(query)
     query_job.result()
 
-    print("Data deletion completed.")
+    print(Fore.BLUE +"Data deletion completed.")
 
 
 def getStudentIDs(df):
@@ -139,7 +138,7 @@ def uploadToBigQuery(df):
         ],
         progress_bar=True,
     )
-    print("Data uploaded to BigQuery table.")
+    print(Fore.BLUE +"Data uploaded to BigQuery table.")
 
 
 # Function to get today's date and move the file to done&uploaded folder
@@ -177,7 +176,7 @@ if csv_files:
     client = bigquery.Client(project=project_id)
 
     if client:
-        print("BigQuery client initialized.")
+        print(Fore.BLUE +"BigQuery client initialized.")
         # Remove empty rows from the DataFrame
         df = df.dropna(how="all")
 
@@ -212,7 +211,7 @@ if csv_files:
         moveSourceFileToUsedFolder()
 
     else:
-        print("Failed to initialize BigQuery client.")
+        print(Fore.RED +"Failed to initialize BigQuery client.")
 
 else:
-    print("No CSV files found in the 'at-report' folder.")
+    print(Fore.RED +"No CSV files found in the 'at-report' folder.")

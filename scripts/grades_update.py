@@ -20,29 +20,30 @@ column_names = ["yog", "name","drop1","drop2","id", "course", "drop3","teacher",
 def clean_data(df):
     print("Cleaning data...")
 
+    # Work with a copy of the dataframe to avoid the SettingWithCopyWarning
+    df = df.copy()
+
     # Rename columns
     df.columns = column_names
-    
+
     checkpoint = input("Enter the Checkpoint in 'Q# CP#' format: ")
 
-    # Delete rows where 'id' is not a number
+    # Convert 'id' to numeric, then drop any NaNs (non-convertible values)
     df['id'] = pd.to_numeric(df['id'], errors='coerce')
-    df = df.dropna(subset=['id'])
-
-   
+    df.dropna(subset=['id'], inplace=True)
 
     # Split 'averageAndLetter' into two columns: 'gradePercent' and 'letterGrade'
     df[['gradePercent', 'letterGrade']] = df['averageAndLetter'].str.split(expand=True)
     # Drop the original 'averageAndLetter' column
     df.drop(columns=['averageAndLetter'], inplace=True)
 
-    # Add new columns
+    # Add new columns using .loc to avoid chained indexing
     today = date.today()
-    df['checkpoint'] = "SY24: " + checkpoint
-    df['date'] = today.strftime("%Y-%m-%d")
-    df['sy'] = "SY24"
+    df.loc[:, 'checkpoint'] = "SY24: " + checkpoint
+    df.loc[:, 'date'] = today.strftime("%Y-%m-%d")
+    df.loc[:, 'sy'] = "SY24"
 
-     # Convert 'id' column to integer type
+    # Convert columns to specific types
     df['id'] = df['id'].astype(int)
     df['yog'] = df['yog'].astype(int)
     df['gradePercent'] = df['gradePercent'].astype(float)
@@ -52,6 +53,7 @@ def clean_data(df):
 
     print("Merging data...")
     return df
+
 
 
 def fetch_roster_data(ids):

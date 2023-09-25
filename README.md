@@ -15,11 +15,26 @@ Completed:
 - Create spreadsheets for Total and Weekly Average Daily Attendance
 - Clean and Upload Student Account Balances
 - Clean and Upload Student Transcript Data
-
-ToDo:
-- Upload Classes Offered
 - Upload Grades
 - Clean and Upload Data Quality
+- Refactors:
+    - grades_update.py
+    - half_day_report_update.py
+    - at_report_update.py
+    - HF Events
+    - HF Referals
+
+
+ToDo:
+- Refactor code to standardize format and naming conventions
+  - account balances
+  - data Quality
+  - focus sweep
+  - focus tardy
+  - roster
+  - total_average_daily_attendance
+  - weekly_average_daily_attendance
+- Upload Classes Offered
 - Add Week to FOCUS Tardy and HallSweep
 - Add Week A/T DB
 - Look into Zapier or other automation tools to refresh connected sheets on update

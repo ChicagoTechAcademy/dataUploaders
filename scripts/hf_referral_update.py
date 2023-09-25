@@ -3,26 +3,22 @@ import pandas as pd
 import pandas_gbq
 from google.cloud import bigquery
 from datetime import datetime
+from colorama import Fore
 
-# Define your GCP project ID and BigQuery dataset ID
-project_id = "chitechdb"
-dataset_id = "behavior"
-table_id = "behavior.HF-Referrals"
-
-# Specify the paths
-source_folder = "../dataUploaders/HF-ref"
-destination_folder = "../dataUploaders/archivedFiles"
-
-
-# Define the column name mappings
-column_mappings = {
-    "date" : "date",
-    "student_id" : "id",
-    "student_name" : "name",
-    "grade" : "grade",
-    "race" : "race",
-    "ethnicity" : "ethnicity",
-    "gender" : "gender",
+# Constants
+PROJECT_ID = "chitechdb"
+DATASET_ID = "behavior"
+TABLE_ID = "behavior.HF-Referrals"
+SOURCE_FOLDER = "../dataUploaders/HF-ref"
+DESTINATION_FOLDER = "../dataUploaders/archivedFiles"
+COLUMN_MAPPINGS = {
+    "date": "date",
+    "student_id": "id",
+    "student_name": "name",
+    "grade": "grade",
+    "race": "race",
+    "ethnicity": "ethnicity",
+    "gender": "gender",
     "name": "type",
     "teacher_that_created": "teacher",
     "teacher_that_resolved": "resolved_by",
@@ -32,28 +28,23 @@ column_mappings = {
     "referral_outcome_type_name": "referral_outcome_type_name",
 }
 
-
-# Add the 'yog' column based on the 'grade' column
 def calculate_yog(grade):
-    if grade == 9:
-        return 2027
-    elif grade == 10:
-        return 2026
-    elif grade == 11:
-        return 2025
-    elif grade == 12:
-        return 2024
-    else:
-        return None  # You can specify a default value if needed
+    """Calculate year of graduation based on grade."""
+    return {
+        9: 2027,
+        10: 2026,
+        11: 2025,
+        12: 2024
+    }.get(grade, None)
 
-def cleanData(df):
+def clean_data(df):
+    """Clean and preprocess the dataframe."""
     df = df.drop(df.columns[13], axis=1)
     df = df.drop(df.columns[12], axis=1)
     df = df.drop(df.columns[10], axis=1)
-    
 
-    # Rename the columns that need renaming
-    for old_col, new_col in column_mappings.items():
+    # Rename columns
+    for old_col, new_col in COLUMN_MAPPINGS.items():
         if old_col in df.columns and new_col not in df.columns:
             df.rename(columns={old_col: new_col}, inplace=True)
 
@@ -61,118 +52,60 @@ def cleanData(df):
     
     return df
 
-
-def deleteOldDataFromDB(client):
-    query = f"""
-    -- Delete data between the specified dates
-    DELETE FROM `chitechdb.{table_id}`
-    WHERE 1=1;
-    """.format(
-        project_id, dataset_id
-    )
-
-    query_job = client.query(query)
-    query_job.result()
+def delete_old_data_from_db(client):
+    """Delete old data from BigQuery."""
+    query = f"DELETE FROM `{PROJECT_ID}.{TABLE_ID}` WHERE TRUE"
+    client.query(query).result()
     print("Data deletion completed.")
 
-
-# Convert the "date" column to "YYYY-MM-DD" format
-def convert_to_standard_date(date_str):
-    month, day, year = map(int, date_str.split("/"))
-    if year < 100:
-        if year >= 22:
-            year += 2000
-        else:
-            year += 1900
-    return f"{year:04d}-{month:02d}-{day:02d}"
-
-
-# Calculate the "sy" column based on the year and month
-def get_sy(date):
-    year, month, _ = map(int, date.split("-"))
-    if (year == 2022 and month >= 8) or (year == 2023 and month <= 7):
-        return "SY23"
-    elif (year == 2023 and month >= 8) or (year == 2024 and month <= 7):
-        return "SY24"
-    return str(year)  # Convert year to string
-
-# Send the DataFrame to BigQuery
-def uploadToBigQuery(df):
+def upload_to_big_query(df):
+    """Upload the processed DataFrame to BigQuery."""
     pandas_gbq.to_gbq(
         df,
-        destination_table=table_id,
-        project_id=project_id,
+        destination_table=TABLE_ID,
+        project_id=PROJECT_ID,
         if_exists="append",
         table_schema=[
-            {"name" : "date","type": "DATE"},
-            {"name" : "id","type": "INTEGER"},
-            {"name" : "name","type": "STRING"},
-            {"name" : "grade","type": "INTEGER"},
-            {"name" : "race","type": "STRING"},
-            {"name" : "ethnicity","type": "STRING"},
-            {"name" : "gender","type": "STRING"},
-            {"name" : "type","type": "STRING"},
-            {"name" : "teacher","type": "STRING"},
-            {"name" : "is_resolved","type": "STRING"},
-            {"name" : "resolved_by","type": "STRING"},
-            {"name" : "yog","type": "INTEGER"},
+            {"name": "date", "type": "DATE"},
+            {"name": "id", "type": "INTEGER"},
+            {"name": "name", "type": "STRING"},
+            {"name": "grade", "type": "INTEGER"},
+            {"name": "race", "type": "STRING"},
+            {"name": "ethnicity", "type": "STRING"},
+            {"name": "gender", "type": "STRING"},
+            {"name": "type", "type": "STRING"},
+            {"name": "teacher", "type": "STRING"},
+            {"name": "is_resolved", "type": "STRING"},
+            {"name": "resolved_by", "type": "STRING"},
+            {"name": "yog", "type": "INTEGER"},
         ],
         progress_bar=True,
     )
-# Function to get today's date and move the file to done&uploaded folder
-def moveSourceFileToUsedFolder():
-    # Generate the new file name with the date
-    current_date = datetime.now().strftime("%Y-%m-%d")
-    new_file_name = f"HF-referral-{current_date}.csv"
-    destination_file_path = os.path.join(destination_folder, new_file_name)
 
-    # Save the CSV file with the new name to the destination folder using pandas
-    df.to_csv(destination_file_path, index=False)
+def move_source_file_to_archive(csv_file, df):
+    """Archive the processed CSV file."""
+    current_datetime = datetime.now().strftime("%Y-%m-%d")
+    new_file_name = f"HF-event-{current_datetime}.csv"
+    df.to_csv(os.path.join(DESTINATION_FOLDER, new_file_name), index=False)
+    os.remove(os.path.join(SOURCE_FOLDER, csv_file))
+    print(Fore.GREEN + f"File '{csv_file}' has been archived as '{new_file_name}'.")
 
-    # Delete the source file
-    os.remove(source_file_path)
+if __name__ == "__main__":
+    csv_files = [f for f in os.listdir(SOURCE_FOLDER) if f.endswith(".csv")]
 
-    print(
-        f"File '{csv_file}' has been saved as '{new_file_name}' and moved to '{destination_folder}'."
-    )
+    if csv_files:
+        csv_file = csv_files[0]
+        df = pd.read_csv(os.path.join(SOURCE_FOLDER, csv_file))
+        client = bigquery.Client(project=PROJECT_ID)
+        print(Fore.RESET + f"Found file: {csv_file}")
 
-
-# List all files in the source folder
-file_list = os.listdir(source_folder)
-
-# Check if there is a .csv file in the folder
-csv_files = [file for file in file_list if file.endswith(".csv")]
-
-if csv_files:
-    csv_file = csv_files[0]  # Get the first (and only) CSV file in the list
-    source_file_path = os.path.join(source_folder, csv_file)
-
-    # Read the CSV file using pandas
-    df = pd.read_csv(source_file_path)
-    print(f"Found file: {csv_file}:")
-    # Initialize the BigQuery client
-    client = bigquery.Client(project=project_id)
-
-    if client:
-        print("BigQuery client initialized.")
-        # Remove empty rows from the DataFrame
-        df = df.dropna(how="all")
-
-        df = cleanData(df)
-
-        # df["date"] = df["date"].apply(convert_to_standard_date)
-
-        # Delete the old data from the BigQuery table
-        deleteOldDataFromDB(client)
-
-        # Upload the DataFrame to BigQuery
-        uploadToBigQuery(df)
-
-        print("Data uploaded to BigQuery table.")
-
-        moveSourceFileToUsedFolder()
+        if client:
+            df = df.dropna(how="all")
+            df = clean_data(df)
+            delete_old_data_from_db(client)
+            upload_to_big_query(df)
+            move_source_file_to_archive(csv_file, df)
+        else:
+            print("Failed to initialize BigQuery client.")
     else:
-        print("Failed to initialize BigQuery client.")
-
-else:
-    print("No CSV files found in the 'at-report' folder.")
+        print("No CSV files found in the source folder.")

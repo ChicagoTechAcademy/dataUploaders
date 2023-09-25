@@ -1,21 +1,18 @@
-from colorama import Fore
 import os
-import pandas as pd
-import pandas_gbq
-from google.cloud import bigquery
 from datetime import datetime
 
-# Define your GCP project ID and BigQuery dataset ID
-project_id = "chitechdb"
-dataset_id = "attendance"
-table_id = "attendance.at-report"
+import pandas as pd
+import pandas_gbq
+from colorama import Fore
+from google.cloud import bigquery
 
-# Specify the paths
-source_folder = "../dataUploaders/at-report"
-destination_folder = "../dataUploaders/archivedFiles"
-
-# Define the column name mappings
-column_mappings = {
+# Constants
+PROJECT_ID = "chitechdb"
+TABLE_ID = "attendance.at-report"
+SOURCE_FOLDER = "../dataUploaders/at-report"
+DESTINATION_FOLDER = "../dataUploaders/archivedFiles"
+ARCHIVE_NAME = "at-report"
+COLUMN_MAPPINGS = {
     "Student > Name": "name",
     "Student > Student ID": "id",
     "Date": "date",
@@ -28,152 +25,96 @@ column_mappings = {
     "Student > YOG": "yog",
 }
 
-def renameColumns(df):
-    # Rename the columns that need renaming
-    for old_col, new_col in column_mappings.items():
-        if old_col in df.columns and new_col not in df.columns:
-            df.rename(columns={old_col: new_col}, inplace=True)
+def load_csv_from_source():
+    """Load CSV from source folder."""
+    csv_files = [f for f in os.listdir(SOURCE_FOLDER) if f.endswith(".csv")]
+    if csv_files:
+        csv_file = csv_files[0]
+        return pd.read_csv(os.path.join(SOURCE_FOLDER, csv_file)).dropna(how="all"), csv_file
+    else:
+        print(Fore.RED + f"No CSV files found in the '{SOURCE_FOLDER}' folder.")
+        return None, None
 
-def deleteOldDataFromDB(client, min_date, max_date):
-    query = f"""
-    DECLARE start_date DATE DEFAULT '{min_date}';
-    DECLARE end_date DATE DEFAULT '{max_date}';
+def process_and_clean_data(df):
+    """
+    Cleans, processes and renames columns.
+    
+    Args:
+    - df (DataFrame): Original DataFrame
 
-    -- Delete data between the specified dates
-    DELETE FROM `chitechdb.{table_id}`
-    WHERE date >= start_date AND date <= end_date;
-    """.format(
-        project_id, dataset_id
-    )
+    Returns:
+    - DataFrame: Processed DataFrame
+    """
+    print(Fore.RESET + "Processing data...")
 
-    query_job = client.query(query)
-    query_job.result()
+    # Rename columns
+    df.rename(columns=COLUMN_MAPPINGS, inplace=True)
+
+    # Convert date and derive related columns
+    df["date"] = df["date"].apply(convert_to_standard_date)
+    df["sy"] = df["date"].apply(get_sy)
+    df["semester"] = df["date"].apply(get_semester)
+    
+    return df
+
+def delete_old_data_from_db(client, min_date, max_date):
+    """Deletes data within a specified date range."""
+    query = f"DELETE FROM `{TABLE_ID}` WHERE date BETWEEN '{min_date}' AND '{max_date}'"
+    client.query(query).result()
     print(Fore.BLUE + "Data deletion completed.")
 
-
-# Convert the "date" column to "YYYY-MM-DD" format
 def convert_to_standard_date(date_str):
     month, day, year = map(int, date_str.split("/"))
-    if year < 100:
-        if year >= 22:
-            year += 2000
-        else:
-            year += 1900
+    year += 2000 if year < 100 else 0
     return f"{year:04d}-{month:02d}-{day:02d}"
 
-
-# Calculate the "sy" column based on the year and month
 def get_sy(date):
-    year, month, _ = map(int, date.split("-"))
-    if (year == 2022 and month >= 8) or (year == 2023 and month <= 7):
-        return "SY23"
-    elif (year == 2023 and month >= 8) or (year == 2024 and month <= 7):
-        return "SY24"
-    return str(year)  # Convert year to string
+    year, month = map(int, date.split("-")[:2])
+    return f"SY{year}" if 8 <= month <= 12 else f"SY{year - 1}"
 
-
-# Calculate the "semester" column based on the month
 def get_semester(date):
     _, month, _ = map(int, date.split("-"))
-    if month >= 8:
-        return "S1"
-    elif month >= 1:
-        return "S2"
-    return ""
+    return "S1" if month >= 8 else "S2"
 
+def upload_to_big_query(df):
+    """Upload DataFrame to BigQuery."""
+    # Schema for BigQuery table
+    schema = [
+        {"name": "name", "type": "STRING"},
+        {"name": "id", "type": "INTEGER"},
+        {"name": "date", "type": "DATE"},
+        {"name": "code", "type": "STRING"},
+        {"name": "course", "type": "STRING"},
+        {"name": "class", "type": "STRING"},
+        {"name": "period", "type": "STRING"},
+        {"name": "tardy", "type": "BOOLEAN"},
+        {"name": "absent", "type": "BOOLEAN"},
+        {"name": "yog", "type": "INTEGER"},
+        {"name": "sy", "type": "STRING"},
+        {"name": "semester", "type": "STRING"},
+    ]
+    pandas_gbq.to_gbq(df, destination_table=TABLE_ID, project_id=PROJECT_ID, if_exists="append", progress_bar=True, table_schema=schema)
+    print(Fore.BLUE + "Data uploaded to BigQuery table.")
 
-# Send the DataFrame to BigQuery
-def uploadToBigQuery(df):
-    pandas_gbq.to_gbq(
-        df,
-        destination_table=table_id,
-        project_id=project_id,
-        if_exists="append",
-        table_schema=[
-            {"name": "name", "type": "STRING"},
-            {"name": "id", "type": "INTEGER"},
-            {"name": "date", "type": "DATE"},
-            {"name": "code", "type": "STRING"},
-            {"name": "course", "type": "STRING"},
-            {"name": "class", "type": "STRING"},
-            {"name": "period", "type": "STRING"},
-            {"name": "tardy", "type": "BOOLEAN"},
-            {"name": "absent", "type": "BOOLEAN"},
-            {"name": "yog", "type": "INTEGER"},
-            {"name": "sy", "type": "STRING"},
-            {"name": "semester", "type": "STRING"},
-        ],
-        progress_bar=True,
-    )
+def archive_source_file(csv_file, df):
+    """Archive the processed CSV file."""
+    current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    new_file_name = f"{ARCHIVE_NAME}-{current_datetime}.csv"
+    df.to_csv(os.path.join(DESTINATION_FOLDER, new_file_name), index=False)
+    os.remove(os.path.join(SOURCE_FOLDER, csv_file))
+    print(Fore.GREEN + f"File '{csv_file}' has been archived as '{new_file_name}'.")
 
+if __name__ == "__main__":
+    print(Fore.RESET + "Starting script...")
+    df, csv_file = load_csv_from_source()
 
-# Function to get today's date and move the file to done&uploaded folder
-def moveSourceFileToUsedFolder():
-    # Generate the new file name with the date
-    current_date = datetime.now().strftime("%Y-%m-%d")
-    new_file_name = f"at-report-{current_date}.csv"
-    destination_file_path = os.path.join(destination_folder, new_file_name)
-
-    # Save the CSV file with the new name to the destination folder using pandas
-    df.to_csv(destination_file_path, index=False)
-
-    # Delete the source file
-    os.remove(source_file_path)
-
-    print(
-        f"File '{csv_file}' has been saved as '{new_file_name}' and moved to '{destination_folder}'."
-    )
-
-
-# List all files in the source folder
-file_list = os.listdir(source_folder)
-
-# Check if there is a .csv file in the folder
-csv_files = [file for file in file_list if file.endswith(".csv")]
-
-if csv_files:
-    csv_file = csv_files[0]  # Get the first (and only) CSV file in the list
-    source_file_path = os.path.join(source_folder, csv_file)
-
-    # Read the CSV file using pandas
-    df = pd.read_csv(source_file_path)
-    print(f"Found file: {csv_file}:")
-    # Initialize the BigQuery client
-    client = bigquery.Client(project=project_id)
-
-    if client:
-        print(Fore.BLUE +"BigQuery client initialized.")
-        # Remove empty rows from the DataFrame
-        df = df.dropna(how="all")
-
-        renameColumns(df)
-
-        df["date"] = df["date"].apply(convert_to_standard_date)
-
-        # Check and add the "sy" column if it doesn't exist
-        if "sy" not in df.columns:
-            df["sy"] = df["date"].apply(get_sy)
-
-        # Check and add the "semester" column if it doesn't exist
-        if "semester" not in df.columns:
-            df["semester"] = df["date"].apply(get_semester)
-
-        # Fetch the min and max dates from the DataFrame
-        min_date = df["date"].min()
-        max_date = df["date"].max()
-        print(f"Min date: {min_date}" + " - " + f"Max date: {max_date}")
-
-        # Delete the old data from the BigQuery table
-        deleteOldDataFromDB(client, min_date, max_date)
-
-        # Upload the DataFrame to BigQuery
-        uploadToBigQuery(df)
-
-        print(Fore.BLUE +"Data uploaded to BigQuery table.")
-
-        moveSourceFileToUsedFolder()
+    if df is not None and csv_file:
+        client = bigquery.Client(project=PROJECT_ID)
+        
+        df = process_and_clean_data(df)
+        min_date, max_date = df["date"].min(), df["date"].max()
+        delete_old_data_from_db(client, min_date, max_date)
+        upload_to_big_query(df)
+        archive_source_file(csv_file, df)
     else:
-        print(Fore.RED +"Failed to initialize BigQuery client.")
-
-else:
-    print(Fore.RED +"No CSV files found in the 'at-report' folder.")
+        print(Fore.RED + "Failed to initialize BigQuery client or no CSV found.")

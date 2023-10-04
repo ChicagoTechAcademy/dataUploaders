@@ -59,12 +59,11 @@ def convert_to_standard_date(date_str):
 
 
 def determine_school_year(date):
-    year, month = map(int, date.split("-"))
-    return f"SY{year}" if month >= 8 else f"SY{year - 1}"
+    return "SY24"
 
 
 def determine_semester(date):
-    _, month = map(int, date.split("-"))
+    month, day, year = map(int, date.split("-"))
     return "S1" if month >= 8 else "S2"
 
 

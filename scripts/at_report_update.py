@@ -69,8 +69,9 @@ def convert_to_standard_date(date_str):
     return f"{year:04d}-{month:02d}-{day:02d}"
 
 def get_sy(date):
-    year, month = map(int, date.split("-")[:2])
-    return f"SY{year}" if 8 <= month <= 12 else f"SY{year - 1}"
+    # year, month = map(int, date.split("-")[:2])
+    # return f"SY{year+1}" if 8 <= month <= 12 else f"SY{year}"
+    return "SY24"
 
 def get_semester(date):
     _, month, _ = map(int, date.split("-"))

@@ -3,6 +3,8 @@ import pandas as pd
 import pandas_gbq
 from google.cloud import bigquery
 from datetime import datetime
+from colorama import Fore
+
 
 # Define your GCP project ID and BigQuery dataset ID
 project_id = "chitechdb"
@@ -105,7 +107,7 @@ def moveSourceFileToUsedFolder():
     # Delete the source file
     os.remove(source_file_path)
 
-    print(
+    print(Fore.GREEN +
         f"File '{csv_file}' has been saved as '{new_file_name}' and moved to '{destination_folder}'."
     )
 
@@ -121,7 +123,6 @@ if csv_files:
 
     # Read the CSV file using pandas
     df = pd.read_csv(source_file_path)
-    print(f"Found file: {csv_file}:")
 
     # Add the "week" column with the specified week_number
     addWeekColumn(df, week_number)
@@ -130,7 +131,7 @@ if csv_files:
     client = bigquery.Client(project=project_id)
 
     if client:
-        print("BigQuery client initialized.")
+        print(Fore.BLUE +"BigQuery client initialized.")
         # Remove empty rows from the DataFrame
         df = df.dropna(how="all")
 
@@ -144,11 +145,11 @@ if csv_files:
         # Upload the DataFrame to BigQuery
         uploadToBigQuery(df)
 
-        print("Data uploaded to BigQuery table.")
+        print(Fore.BLUE +"Data uploaded to BigQuery table.")
 
         moveSourceFileToUsedFolder()
     else:
-        print("Failed to initialize BigQuery client.")
+        print(Fore.RED + "Failed to initialize BigQuery client.")
 
 else:
-    print(f"No CSV files found in the {source_folder} folder.")
+    print(Fore.RED + f"No CSV files found in the {source_folder} folder.")

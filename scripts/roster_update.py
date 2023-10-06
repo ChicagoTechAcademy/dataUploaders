@@ -38,8 +38,6 @@ def cleanData(df):
     df = df.drop(df.columns[3], axis=1)
     df = df.drop(df.columns[2], axis=1)
 
-
-    print(df.columns)
     # Rename the columns that exist in the DataFrame and are specified in column_mappings
     for old_col, new_col in column_mappings.items():
         if old_col in df.columns:
@@ -51,6 +49,7 @@ def cleanData(df):
     df["enrollment"] = df["enrollment"].astype(str)
     df["dob"] = df["dob"].apply(convert_to_standard_date)
     return df
+
 
 def convert_to_standard_date(date_str):
     # if date_str is null, return null
@@ -128,7 +127,6 @@ if csv_files:
 
     # Read the CSV file using pandas
     df = pd.read_csv(source_file_path)
-    print(f"Found file: {csv_file}:")
     # Initialize the BigQuery client
     client = bigquery.Client(project=project_id)
 

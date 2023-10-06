@@ -51,6 +51,7 @@ def cleanData(df):
     df["graduationDate"] = df["graduationDate"].apply(convert_to_standard_date)
     return df
 
+
 def convert_to_standard_date(date_str):
     # if date_str is null, return null
     if pd.isnull(date_str):

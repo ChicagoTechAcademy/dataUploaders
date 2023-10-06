@@ -97,7 +97,6 @@ if __name__ == "__main__":
     if csv_files:
         csv_file = os.path.join(SOURCE_FOLDER, csv_files[0])
         data = pd.read_csv(csv_file)
-        print(Fore.GREEN + f"Found file: {csv_files[0]}")
 
         client = bigquery.Client(project=PROJECT_ID)
 

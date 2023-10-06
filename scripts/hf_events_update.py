@@ -29,19 +29,14 @@ COLUMN_MAPPINGS = {
 
 def calculate_yog(grade):
     """Calculate year of graduation based on grade."""
-    return {
-        9: 2027,
-        10: 2026,
-        11: 2025,
-        12: 2024
-    }.get(grade, None)
+    return {9: 2027, 10: 2026, 11: 2025, 12: 2024}.get(grade, None)
 
 
 def clean_data(df):
     """Clean and process data."""
     df.drop(columns=df.columns[12:14], inplace=True)
     df.rename(columns=COLUMN_MAPPINGS, inplace=True)
-    df['yog'] = df['grade'].apply(calculate_yog)
+    df["yog"] = df["grade"].apply(calculate_yog)
     return df
 
 
@@ -57,14 +52,30 @@ def upload_to_big_query(df):
     schema = [
         {"name": key, "type": value}
         for key, value in {
-            "date": "DATE", "id": "INTEGER", "name": "STRING", "grade": "INTEGER",
-            "race": "STRING", "ethnicity": "STRING", "gender": "STRING",
-            "event_group": "STRING", "event_type": "STRING", "class": "STRING",
-            "teacher": "STRING", "is_resolved": "STRING", "yog": "INTEGER"
+            "date": "DATE",
+            "id": "INTEGER",
+            "name": "STRING",
+            "grade": "INTEGER",
+            "race": "STRING",
+            "ethnicity": "STRING",
+            "gender": "STRING",
+            "event_group": "STRING",
+            "event_type": "STRING",
+            "class": "STRING",
+            "teacher": "STRING",
+            "is_resolved": "STRING",
+            "yog": "INTEGER",
         }.items()
     ]
     print(Fore.BLUE + "Uploading data to BigQuery...")
-    pandas_gbq.to_gbq(df, destination_table=TABLE_ID, project_id=PROJECT_ID, if_exists="append", table_schema=schema, progress_bar=True)
+    pandas_gbq.to_gbq(
+        df,
+        destination_table=TABLE_ID,
+        project_id=PROJECT_ID,
+        if_exists="append",
+        table_schema=schema,
+        progress_bar=True,
+    )
 
 
 def move_source_file_to_archive(csv_file, df):

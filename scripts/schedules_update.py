@@ -20,8 +20,9 @@ column_mappings = {
     "Description": "class",
     "Clssrm": "room",
     "Name": "teacher",
-    "Schedule": "period"
+    "Schedule": "period",
 }
+
 
 def clean_data(df):
     """
@@ -31,17 +32,29 @@ def clean_data(df):
     print("Cleaning data...")
 
     # Drop unnecessary columns
-    df.drop(columns=["MiddleName", "SpecialEdStus", "Homeroom", "Inclusion?", "SecType", "Total", "Max"], inplace=True, errors='ignore')
+    df.drop(
+        columns=[
+            "MiddleName",
+            "SpecialEdStus",
+            "Homeroom",
+            "Inclusion?",
+            "SecType",
+            "Total",
+            "Max",
+        ],
+        inplace=True,
+        errors="ignore",
+    )
     print("Dropped unnecessary columns.")
 
     # Rename columns based on predefined mappings
-    df.rename(columns=column_mappings, inplace=True, errors='raise')
+    df.rename(columns=column_mappings, inplace=True, errors="raise")
     print(f"Renamed columns to: {', '.join(column_mappings.values())}")
 
     # Add 'scheduleAsOf', 'sy', and 'semester' columns
-    df['scheduleAsOf'] = datetime.now().strftime('%Y-%m-%d')
-    df['sy'] = 'SY24'
-    df['semester'] = 'S1'
+    df["scheduleAsOf"] = datetime.now().strftime("%Y-%m-%d")
+    df["sy"] = "SY24"
+    df["semester"] = "S1"
 
     return df
 
@@ -69,7 +82,6 @@ def convert_to_standard_date(date_str):
     return f"{year:04d}-{month:02d}-{day:02d}"
 
 
-
 def upload_to_big_query(df):
     """
     Uploads processed dataframe to BigQuery.
@@ -90,8 +102,14 @@ def upload_to_big_query(df):
         {"name": "semester", "type": "STRING"},
     ]
 
-    pandas_gbq.to_gbq(df, destination_table=table_id, project_id=project_id,
-                      if_exists="append", table_schema=schema, progress_bar=True)
+    pandas_gbq.to_gbq(
+        df,
+        destination_table=table_id,
+        project_id=project_id,
+        if_exists="append",
+        table_schema=schema,
+        progress_bar=True,
+    )
 
 
 def archive_source_file(csv_file):
@@ -109,15 +127,15 @@ def archive_source_file(csv_file):
 if __name__ == "__main__":
     print("Starting script...")
 
-    csv_files = [f for f in os.listdir(source_folder) if f.endswith('.csv')]
-    
+    csv_files = [f for f in os.listdir(source_folder) if f.endswith(".csv")]
+
     if csv_files:
         csv_file = csv_files[0]
         csv_path = os.path.join(source_folder, csv_file)
 
         df = pd.read_csv(csv_path).dropna(how="all")
         print("Deleted empty rows from the DataFrame.")
-        
+
         client = bigquery.Client(project=project_id)
         if client:
             df = clean_data(df)
@@ -130,7 +148,5 @@ if __name__ == "__main__":
         print(f"No CSV files found in the '{archive_name}' folder.")
 
 
-    
-
 # needs to get YOG and upload date for "asOf" and include the school year and semester
-# 
+#

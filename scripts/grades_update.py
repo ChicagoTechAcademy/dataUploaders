@@ -14,7 +14,16 @@ SOURCE_FOLDER = "../dataUploaders/grades"
 DESTINATION_FOLDER = "../dataUploaders/archivedFiles"
 ARCHIVE_NAME = "grades"
 COLUMN_NAMES = [
-    "yog", "name", "drop1", "drop2", "id", "course", "drop3", "teacher", "drop4", "averageAndLetter"
+    "yog",
+    "name",
+    "drop1",
+    "drop2",
+    "id",
+    "course",
+    "drop3",
+    "teacher",
+    "drop4",
+    "averageAndLetter",
 ]
 
 
@@ -23,7 +32,10 @@ def load_csv_from_source():
     csv_files = [f for f in os.listdir(SOURCE_FOLDER) if f.endswith(".csv")]
     if csv_files:
         csv_file = csv_files[0]
-        return pd.read_csv(os.path.join(SOURCE_FOLDER, csv_file)).dropna(how="all"), csv_file
+        return (
+            pd.read_csv(os.path.join(SOURCE_FOLDER, csv_file)).dropna(how="all"),
+            csv_file,
+        )
     else:
         print(Fore.RED + f"No CSV files found in the '{SOURCE_FOLDER}' folder.")
         return None, None
@@ -32,7 +44,7 @@ def load_csv_from_source():
 def clean_data(df):
     """
     Cleans and processes data.
-    
+
     Args:
     - df (DataFrame): Original DataFrame
 
@@ -56,7 +68,20 @@ def clean_data(df):
     df["id"] = df["id"].astype(int)
     df["yog"] = df["yog"].astype(int)
     df["gradePercent"] = df["gradePercent"].astype(float)
-    df = df[["checkpoint", "date", "id", "name", "yog", "course", "teacher", "gradePercent", "letterGrade", "sy"]]
+    df = df[
+        [
+            "checkpoint",
+            "date",
+            "id",
+            "name",
+            "yog",
+            "course",
+            "teacher",
+            "gradePercent",
+            "letterGrade",
+            "sy",
+        ]
+    ]
 
     print(Fore.RESET + "Merging data...")
     return df
@@ -97,7 +122,14 @@ def upload_to_big_query(df):
     ]
 
     print(Fore.BLUE + "Uploading data to BigQuery...")
-    pandas_gbq.to_gbq(df, destination_table=TABLE_ID, project_id=PROJECT_ID, if_exists="append", progress_bar=True, table_schema=schema)
+    pandas_gbq.to_gbq(
+        df,
+        destination_table=TABLE_ID,
+        project_id=PROJECT_ID,
+        if_exists="append",
+        progress_bar=True,
+        table_schema=schema,
+    )
 
 
 if __name__ == "__main__":

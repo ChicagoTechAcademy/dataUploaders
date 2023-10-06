@@ -28,14 +28,11 @@ COLUMN_MAPPINGS = {
     "referral_outcome_type_name": "referral_outcome_type_name",
 }
 
+
 def calculate_yog(grade):
     """Calculate year of graduation based on grade."""
-    return {
-        9: 2027,
-        10: 2026,
-        11: 2025,
-        12: 2024
-    }.get(grade, None)
+    return {9: 2027, 10: 2026, 11: 2025, 12: 2024}.get(grade, None)
+
 
 def clean_data(df):
     """Clean and preprocess the dataframe."""
@@ -48,15 +45,17 @@ def clean_data(df):
         if old_col in df.columns and new_col not in df.columns:
             df.rename(columns={old_col: new_col}, inplace=True)
 
-    df['yog'] = df['grade'].apply(calculate_yog)
-    
+    df["yog"] = df["grade"].apply(calculate_yog)
+
     return df
+
 
 def delete_old_data_from_db(client):
     """Delete old data from BigQuery."""
     query = f"DELETE FROM `{PROJECT_ID}.{TABLE_ID}` WHERE TRUE"
     client.query(query).result()
     print("Data deletion completed.")
+
 
 def upload_to_big_query(df):
     """Upload the processed DataFrame to BigQuery."""
@@ -82,6 +81,7 @@ def upload_to_big_query(df):
         progress_bar=True,
     )
 
+
 def move_source_file_to_archive(csv_file, df):
     """Archive the processed CSV file."""
     current_datetime = datetime.now().strftime("%Y-%m-%d")
@@ -89,6 +89,7 @@ def move_source_file_to_archive(csv_file, df):
     df.to_csv(os.path.join(DESTINATION_FOLDER, new_file_name), index=False)
     os.remove(os.path.join(SOURCE_FOLDER, csv_file))
     print(Fore.GREEN + f"File '{csv_file}' has been archived as '{new_file_name}'.")
+
 
 if __name__ == "__main__":
     csv_files = [f for f in os.listdir(SOURCE_FOLDER) if f.endswith(".csv")]

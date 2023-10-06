@@ -52,12 +52,14 @@ def clean_data(df):
     # Left join with the roster DataFrame to fill missing IDs
     df = df.merge(roster_df, on='name', how='left', suffixes=('', '_roster'))
 
-    # Wherever the original ID is missing, fill it with the ID from the roster table
-    df['id'].fillna(df['id_roster'], inplace=True)
+    # Use the ID from the roster, drop the original ID
+    df['id'] = df['id_roster']
     df.drop(columns=['id_roster'], inplace=True)  # Drop the temporary 'id_roster' column
 
+
+
     # Delete rows where 'id' is NaN (missing)
-    df.dropna(subset=['id'], inplace=True)
+    # df.dropna(subset=['id'], inplace=True)
 
 
     # Drop unwanted columns (optional, uncomment if needed)

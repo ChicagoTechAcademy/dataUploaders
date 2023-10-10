@@ -25,6 +25,8 @@ column_mappings = {
 
 
 def cleanData(df):
+    df = df.drop(df.columns[18], axis=1)
+    df = df.drop(df.columns[17], axis=1)
     df = df.drop(df.columns[16], axis=1)
     df = df.drop(df.columns[15], axis=1)
     df = df.drop(df.columns[14], axis=1)

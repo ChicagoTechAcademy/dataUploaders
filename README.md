@@ -8,10 +8,12 @@
   - Download the project: GitHub Link: dataUploaders 
   - [Install Python to the computer](https://docs.python-guide.org/starting/install3/osx/). May need to set permissions
   - [Install BigQuery to Terminal](https://codelabs.developers.google.com/codelabs/cloud-bigquery-python#0)
-  - Install pyarrow
-  - Install Pandas_gbq
+  - Install pyarrow to terminal
   - [Install Pandas to Terminal](https://pandas.pydata.org/pandas-docs/stable/getting_started/install.html)
   <!-- - [Install Google Sheets to Terminal](https://developers.google.com/sheets/api/quickstart/python) -->
+  - Install Pandas_gbq to terminal
+  - Install tqdm to terminal
+  - Install datatime to terminal
   - [Install Colorama to Terminal](https://pypi.org/project/colorama/)
   - Pull Reports. Click on the appropriate script to run Python scripts. 
     - Or open terminal in the dataUploaders folder and un individual scripts by using “python3 scripts/helloworld.py” structure

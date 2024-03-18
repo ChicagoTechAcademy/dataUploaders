@@ -4,7 +4,6 @@ import pandas_gbq
 import pydata_google_auth
 import os
 from colorama import init, Fore
-
 init(autoreset=True)
 
 

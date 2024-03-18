@@ -1,4 +1,13 @@
-from _dataManager import *
+from _dataManager import (
+    readCSV,
+    uploadToBigQuery,
+    deleteAllDataFromTable,
+    archiveSourceFile,
+    convertToStandardDate,
+)
+
+from colorama import init, Fore
+init(autoreset=True)
 
 
 scriptName = "roster_update"

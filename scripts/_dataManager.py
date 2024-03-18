@@ -45,6 +45,17 @@ def deleteAllDataFromTable(project_id, dataset_id, table_id):
     pandas_gbq.read_gbq(query)
     print(Fore.BLUE + f"All data from {table_id} has been deleted.")
 
+def deleteDataBetweenDates(project_id, dataset_id, table_id, min_date, max_date):
+    """
+    Deletes data from the specified BigQuery table within a specified date range.
+    """
+    print(Fore.BLUE + "Deleting data from database within date range...")
+    pandas_gbq.context.credentials = credentials
+    pandas_gbq.context.project = project_id
+    query = f"DELETE FROM `{dataset_id}.{table_id}` WHERE date BETWEEN '{min_date}' AND '{max_date}'"
+    pandas_gbq.read_gbq(query)
+    print(Fore.BLUE + "Data deletion completed.")
+
 
 def uploadToBigQuery(df, schema, project_id, dataset_id, table_id):
     """
@@ -110,3 +121,13 @@ def convertToStandardDate(date_str):
         else:
             year += 2000
     return f"{year:04d}-{month:02d}-{day:02d}"
+
+def getSchoolYear(date):
+    # year, month = map(int, date.split("-")[:2])
+    # return f"SY{year+1}" if 8 <= month <= 12 else f"SY{year}"
+    return "SY24"
+
+
+def getSemester(date):
+    _, month, _ = map(int, date.split("-"))
+    return "S1" if month >= 8 else "S2"

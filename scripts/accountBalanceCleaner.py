@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import pandas_gbq
+import pydata_google_auth
 from google.cloud import bigquery
 from datetime import datetime
 from colorama import Fore
@@ -12,6 +13,21 @@ roster_table_id = "student_info.roster"
 source_folder = "../dataUploaders/accountBalances"
 destination_folder = "../dataUploaders/archivedFiles"
 archive_name = "accountBalances"
+
+SCOPES = [
+    'https://www.googleapis.com/auth/cloud-platform',
+    'https://www.googleapis.com/auth/drive',
+]
+
+credentials = pydata_google_auth.get_user_credentials(
+    SCOPES,
+    # Note, this doesn't work if you're running from a notebook on a
+    # remote sever, such as over SSH or with Google Colab. In those cases,
+    # install the gcloud command line interface and authenticate with the
+    # `gcloud auth application-default login` command and the `--no-browser`
+    # option.
+    auth_local_webserver=True,
+)
 
 # Desired column names
 column_names = [
@@ -40,9 +56,13 @@ def fetch_roster_data(ids):
     Queries BigQuery for the name and YOG based on a list of IDs.
     Returns a DataFrame.
     """
-    client = bigquery.Client(project=project_id)
     query = f"SELECT id, name, yog FROM `{roster_table_id}` WHERE id IN {tuple(ids)}"
-    roster_df = client.query(query).to_dataframe()
+    roster_df = pandas_gbq.read_gbq(
+        query,
+        project_id=project_id,
+         credentials=credentials,
+    )
+    print(roster_df)
     return roster_df
 
 
@@ -79,13 +99,13 @@ def clean_data(df):
     )
 
     # Convert 'bal' to float
-    df["balance"] = df["balance"].astype(float)
+    # df["balance"] = df["balance"].astype(float)
 
     print(Fore.BLUE + "Getting names and YOG from data base...")
     # # Fetch student information from roster
     unique_ids = df["id"].dropna().unique().astype(int)  # Convert IDs to integers
     roster_df = fetch_roster_data(unique_ids)
-
+    print(roster_df)
     # # Merge roster data to df based on 'id'
     df = pd.merge(df, roster_df, on="id", how="left")
 
@@ -150,8 +170,8 @@ if __name__ == "__main__":
 
         df = clean_data(df)
 
-        delete_all_data_from_table()  # Call this function before uploading new data
-        upload_to_big_query(df)
+        # delete_all_data_from_table()  # Call this function before uploading new data
+        # upload_to_big_query(df)
         archive_source_file(csv_file, df)
     else:
         print(Fore.RED + f"No CSV files found in the '{archive_name}' folder.")

@@ -162,8 +162,3 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 .DS_Store
-currRoster/.DS_Store
-focus-sweep/.DS_Store
-focus-tardy/.DS_Store
-half-day-report/.DS_Store
-medicalCompliance/.DS_Store

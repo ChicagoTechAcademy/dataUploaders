@@ -123,11 +123,17 @@ def convertToStandardDate(date_str):
     return f"{year:04d}-{month:02d}-{day:02d}"
 
 def getSchoolYear(date):
-    # year, month = map(int, date.split("-")[:2])
-    # return f"SY{year+1}" if 8 <= month <= 12 else f"SY{year}"
-    return "SY24"
+    year = int(date.split('-')[0])
+    month = int(date.split('-')[1])
+    if month > 7:
+        return f"SY{year+1}"
+    else:
+        return f"SY{year}"
 
 
 def getSemester(date):
-    _, month, _ = map(int, date.split("-"))
-    return "S1" if month >= 8 else "S2"
+    month = int(date.split('-')[1])
+    if month > 7:
+        return "S1"
+    else:
+        return "S2"

@@ -35,7 +35,6 @@ def fetchDataFromBigQuery(query):
     )
     return df
 
-
 def deleteAllDataFromTable(project_id, dataset_id, table_id):
     """
     Deletes all data from the specified BigQuery table.
@@ -98,3 +97,17 @@ def readCSV(source_folder):
             + f"File '{csv_file}' has been read. Empty rows have been removed."
         )
         return csv_file, df
+
+
+def convertToStandardDate(date_str):
+    # if date_str is null, return null
+    if pd.isnull(date_str):
+        return None
+
+    month, day, year = map(int, date_str.split("/"))
+    if year < 100:
+        if year >= 50:
+            year += 1900
+        else:
+            year += 2000
+    return f"{year:04d}-{month:02d}-{day:02d}"

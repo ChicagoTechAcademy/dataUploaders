@@ -47,8 +47,8 @@ def doWork():
     cleanedDataFrame = cleanData(rawDataFrame)
 
     # Fetch the roster data
-    rosterQuery = f"SELECT * FROM `student_info.roster`"
-    roster_df = fetchDataFromBigQuery(rosterQuery)
+    # rosterQuery = f"SELECT * FROM `student_info.roster`"
+    # roster_df = fetchDataFromBigQuery(rosterQuery)
 
     deleteAllDataFromTable(project_id, dataset_id, table_id)
 

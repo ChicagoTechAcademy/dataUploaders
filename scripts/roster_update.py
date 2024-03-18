@@ -1,18 +1,23 @@
-import os
-import pandas as pd
-import pandas_gbq
-from google.cloud import bigquery
-from datetime import datetime
-from tqdm import tqdm
+from _dataManager import *
 
-# Define your GCP project ID and BigQuery dataset ID
+
+scriptName = "roster_update"
+
+
+# Constants
 project_id = "chitechdb"
 dataset_id = "student_info"
-table_id = "student_info.roster"
+table_id = "roster"
+source_folder = f"../dataUploaders/{table_id}"
 
-# Specify the paths
-source_folder = "../dataUploaders/currRoster"
-destination_folder = "../dataUploaders/archivedFiles"
+tableSchema = [
+    {"name": "name", "type": "STRING"},
+    {"name": "id", "type": "INTEGER"},
+    {"name": "dob", "type": "DATE"},
+    {"name": "enrollment", "type": "STRING"},
+    {"name": "yog", "type": "INTEGER"},
+]
+
 
 # Define the column name mappings
 column_mappings = {
@@ -49,107 +54,32 @@ def cleanData(df):
     df["id"] = df["id"].astype(int)
     df["yog"] = df["yog"].astype(int)
     df["enrollment"] = df["enrollment"].astype(str)
-    df["dob"] = df["dob"].apply(convert_to_standard_date)
+    df["dob"] = df["dob"].apply(convertToStandardDate)
     return df
 
 
-def convert_to_standard_date(date_str):
-    # if date_str is null, return null
-    if pd.isnull(date_str):
-        return None
+def doWork():
+    """
+    Main function for the script.
+    """
+    print(Fore.YELLOW + f"Starting {scriptName} script...")
 
-    month, day, year = map(int, date_str.split("/"))
-    if year < 100:
-        if year >= 50:
-            year += 1900
-        else:
-            year += 2000
-    return f"{year:04d}-{month:02d}-{day:02d}"
+    # Read in the first .csv file found
+    csv_file, rawDataFrame = readCSV(source_folder)
 
+    # Clean the data
+    cleanedDataFrame = cleanData(rawDataFrame)
 
-def deleteOldDataFromDB(client):
-    query = f"""
-    -- Delete data between the specified dates
-    DELETE FROM `chitechdb.{table_id}`
-    WHERE 1=1;
-    """.format(
-        project_id, dataset_id
-    )
+    # purge the table
+    deleteAllDataFromTable(project_id, dataset_id, table_id)
 
-    query_job = client.query(query)
-    query_job.result()
-    print("Data deletion completed.")
+    # Upload the data to BigQuery
+    uploadToBigQuery(cleanedDataFrame, tableSchema, project_id, dataset_id, table_id)
+
+    # Archive the source file
+    archiveSourceFile(cleanedDataFrame, csv_file, source_folder, table_id)
+
+    print(Fore.GREEN + f"{scriptName} data pull complete.")
 
 
-# Send the DataFrame to BigQuery
-def uploadToBigQuery(df):
-    pandas_gbq.to_gbq(
-        df,
-        destination_table=table_id,
-        project_id=project_id,
-        if_exists="replace",
-        table_schema=[
-            {"name": "name", "type": "STRING"},
-            {"name": "id", "type": "INTEGER"},
-            {"name": "dob", "type": "DATE"},
-            {"name": "enrollment", "type": "STRING"},
-            {"name": "yog", "type": "INTEGER"},
-        ],
-        progress_bar=True,
-    )
-
-
-# Function to get today's date and move the file to done&uploaded folder
-def moveSourceFileToUsedFolder():
-    # Generate the new file name with the date
-    current_date = datetime.now().strftime("%Y-%m-%d")
-    new_file_name = f"currRoster-{current_date}.csv"
-    destination_file_path = os.path.join(destination_folder, new_file_name)
-
-    # Save the CSV file with the new name to the destination folder using pandas
-    df.to_csv(destination_file_path, index=False)
-
-    # Delete the source file
-    os.remove(source_file_path)
-
-    print(
-        f"File '{csv_file}' has been saved as '{new_file_name}' and moved to '{destination_folder}'."
-    )
-
-
-# List all files in the source folder
-file_list = os.listdir(source_folder)
-
-# Check if there is a .csv file in the folder
-csv_files = [file for file in file_list if file.endswith(".csv")]
-
-if csv_files:
-    csv_file = csv_files[0]  # Get the first (and only) CSV file in the list
-    source_file_path = os.path.join(source_folder, csv_file)
-
-    # Read the CSV file using pandas
-    df = pd.read_csv(source_file_path)
-    # Initialize the BigQuery client
-    client = bigquery.Client(project=project_id)
-
-    if client:
-        print("BigQuery client initialized.")
-        # Remove empty rows from the DataFrame
-        df = df.dropna(how="all")
-
-        df = cleanData(df)
-
-        # Delete the old data from the BigQuery table
-        deleteOldDataFromDB(client)
-
-        # Upload the DataFrame to BigQuery
-        uploadToBigQuery(df)
-
-        print("Data uploaded to BigQuery table.")
-
-        moveSourceFileToUsedFolder()
-    else:
-        print("Failed to initialize BigQuery client.")
-
-else:
-    print("No CSV files found in the 'at-report' folder.")
+doWork()

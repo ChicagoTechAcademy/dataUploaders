@@ -1,7 +1,7 @@
 from _dataManager import *
 
 
-scriptName = "refactorTest"
+scriptName = "accountBalanceCleaner"
 
 
 # Constants
@@ -77,7 +77,7 @@ def clean_data(df):
 
     # convert the balance column to float
     df["balance"] = df["balance"].astype(float)
-    
+
     print(Fore.BLUE + "Getting names and YOG from data base...")
     # # Fetch student information from roster
     unique_ids = df["id"].dropna().unique().astype(int)  # Convert IDs to integers

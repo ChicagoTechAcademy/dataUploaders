@@ -1,33 +1,21 @@
-import os
-import pandas as pd
-import pandas_gbq
-import pydata_google_auth
-from google.cloud import bigquery
-from datetime import datetime
-from colorama import Fore
+from _dataManager import *
+
+
+scriptName = "refactorTest"
+
 
 # Constants
 project_id = "chitechdb"
-table_id = "student_info.accountBalances"
-roster_table_id = "student_info.roster"
-source_folder = "../dataUploaders/accountBalances"
-destination_folder = "../dataUploaders/archivedFiles"
-archive_name = "accountBalances"
+dataset_id = "student_info"
+table_id = "accountBalances"
+source_folder = f"../dataUploaders/{table_id}"
 
-SCOPES = [
-    'https://www.googleapis.com/auth/cloud-platform',
-    'https://www.googleapis.com/auth/drive',
+schema = [
+    {"name": "name", "type": "STRING"},
+    {"name": "id", "type": "INTEGER"},
+    {"name": "yog", "type": "INTEGER"},
+    {"name": "balance", "type": "FLOAT"},
 ]
-
-credentials = pydata_google_auth.get_user_credentials(
-    SCOPES,
-    # Note, this doesn't work if you're running from a notebook on a
-    # remote sever, such as over SSH or with Google Colab. In those cases,
-    # install the gcloud command line interface and authenticate with the
-    # `gcloud auth application-default login` command and the `--no-browser`
-    # option.
-    auth_local_webserver=True,
-)
 
 # Desired column names
 column_names = [
@@ -50,20 +38,6 @@ column_names = [
     "drop15",
 ]
 
-
-def fetch_roster_data(ids):
-    """
-    Queries BigQuery for the name and YOG based on a list of IDs.
-    Returns a DataFrame.
-    """
-    query = f"SELECT id, name, yog FROM `{roster_table_id}` WHERE id IN {tuple(ids)}"
-    roster_df = pandas_gbq.read_gbq(
-        query,
-        project_id=project_id,
-         credentials=credentials,
-    )
-    print(roster_df)
-    return roster_df
 
 
 def clean_data(df):
@@ -98,14 +72,18 @@ def clean_data(df):
         "  and is payable upon the indicated date.  ", ""
     )
 
-    # Convert 'bal' to float
-    # df["balance"] = df["balance"].astype(float)
+    # if the balance column has ( ) around it, then convert to a negative number
+    df["balance"] = df["balance"].apply(lambda x: x.replace("(", "-").replace(")", "") if "(" in x else x)
 
+    # convert the balance column to float
+    df["balance"] = df["balance"].astype(float)
+    
     print(Fore.BLUE + "Getting names and YOG from data base...")
     # # Fetch student information from roster
     unique_ids = df["id"].dropna().unique().astype(int)  # Convert IDs to integers
-    roster_df = fetch_roster_data(unique_ids)
-    print(roster_df)
+    roster_df = fetchDataFromBigQuery(
+        f"SELECT name, id, yog FROM `student_info.roster` WHERE id IN ({', '.join(map(str, unique_ids))})"
+    )
     # # Merge roster data to df based on 'id'
     df = pd.merge(df, roster_df, on="id", how="left")
 
@@ -116,62 +94,23 @@ def clean_data(df):
     return df
 
 
-def delete_all_data_from_table():
-    """
-    Deletes all data from the specified BigQuery table.
-    """
-    print(Fore.BLUE + "Deleting old data from database to override...")
-    client = bigquery.Client(project=project_id)
-    query = f"DELETE FROM `{table_id}` WHERE TRUE"
-    client.query(query).result()  # Execute the DELETE query
-    print(Fore.BLUE + f"All data from {table_id} has been deleted.")
 
 
-def archive_source_file(csv_file, df):
-    current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    new_file_name = f"{archive_name}-{current_datetime}.csv"
-    destination_file_path = os.path.join(destination_folder, new_file_name)
-    df.to_csv(destination_file_path, index=False)
-    os.remove(os.path.join(source_folder, csv_file))
-    print(Fore.GREEN + f"File '{csv_file}' has been archived as '{new_file_name}'.")
+def doWork():
+    print(Fore.YELLOW + f"Starting {scriptName} script...")
 
+    # Read in the first .csv file found
+    csv_file, rawDataFrame = readCSV(source_folder)
 
-def upload_to_big_query(df):
-    # Define the schema for the BigQuery table
-    schema = [
-        {"name": "name", "type": "STRING"},
-        {"name": "id", "type": "INTEGER"},
-        {"name": "yog", "type": "INTEGER"},
-        {"name": "balance", "type": "FLOAT"},
-    ]
-    print(Fore.BLUE + "Uploading data to BigQuery...")
-    # Upload the dataframe
-    pandas_gbq.to_gbq(
-        df,
-        destination_table=table_id,
-        project_id=project_id,
-        if_exists="append",
-        progress_bar=True,
-        table_schema=schema,
-    )
+    # Clean the data
+    cleanedDataFrame = clean_data(rawDataFrame)
 
+    deleteAllDataFromTable(project_id, dataset_id, table_id)
 
-if __name__ == "__main__":
-    print(Fore.WHITE + "Starting script...")
+    # Upload the data to BigQuery
+    uploadToBigQuery(cleanedDataFrame, schema, project_id, dataset_id, table_id)
 
-    csv_files = [f for f in os.listdir(source_folder) if f.endswith(".csv")]
+    # Archive the source file
+    archiveSourceFile(cleanedDataFrame, csv_file, source_folder, table_id)
 
-    if csv_files:
-        csv_file = csv_files[0]
-        csv_path = os.path.join(source_folder, csv_file)
-
-        df = pd.read_csv(csv_path).dropna(how="all")
-        print(Fore.WHITE + "Deleted empty rows from the DataFrame.")
-
-        df = clean_data(df)
-
-        # delete_all_data_from_table()  # Call this function before uploading new data
-        # upload_to_big_query(df)
-        archive_source_file(csv_file, df)
-    else:
-        print(Fore.RED + f"No CSV files found in the '{archive_name}' folder.")
+doWork()

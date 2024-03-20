@@ -2,13 +2,13 @@ from _dataManager import *
 import os
 
 
-scriptName = "focus_sweep_update"
+scriptName = "focus_tardy_update"
 
 
 # Constants
 project_id = "chitechdb"
 dataset_id = "attendance"
-table_id = "focus-sweep"
+table_id = "focus-tardy"
 source_folder = f"../dataUploaders/{table_id}"
 
 schema = [

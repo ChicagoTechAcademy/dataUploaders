@@ -39,7 +39,6 @@ column_names = [
 ]
 
 
-
 def clean_data(df):
     print(Fore.WHITE + "Cleaning data...")
 
@@ -73,7 +72,9 @@ def clean_data(df):
     )
 
     # if the balance column has ( ) around it, then convert to a negative number
-    df["balance"] = df["balance"].apply(lambda x: x.replace("(", "-").replace(")", "") if "(" in x else x)
+    df["balance"] = df["balance"].apply(
+        lambda x: x.replace("(", "-").replace(")", "") if "(" in x else x
+    )
 
     # convert the balance column to float
     df["balance"] = df["balance"].astype(float)
@@ -94,8 +95,6 @@ def clean_data(df):
     return df
 
 
-
-
 def doWork():
     print(Fore.YELLOW + f"Starting {scriptName} script...")
 
@@ -112,5 +111,6 @@ def doWork():
 
     # Archive the source file
     archiveSourceFile(cleanedDataFrame, csv_file, source_folder, table_id)
+
 
 doWork()

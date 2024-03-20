@@ -122,6 +122,14 @@ def convertToStandardDate(date_str):
             year += 2000
     return f"{year:04d}-{month:02d}-{day:02d}"
 
+def convertToStandardTime(time_str):
+    # if time_str is null, return null
+    if pd.isnull(time_str):
+        return None
+
+    hour, minute, second = map(int, time_str.split(":"))
+    return f"{hour:02d}:{minute:02d}:{second:02d}"
+
 def getSchoolYear(date):
     year = int(date.split('-')[0])
     month = int(date.split('-')[1])

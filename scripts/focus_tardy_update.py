@@ -114,5 +114,8 @@ def doWork():
     # Archive the source file
     archiveSourceFile(cleanedDataFrame, csv_file, source_folder, table_id)
 
+    print(Fore.GREEN + f"{scriptName} data pull complete.")
+
+
 
 doWork()

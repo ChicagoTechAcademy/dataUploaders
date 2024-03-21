@@ -50,7 +50,7 @@ def doWork():
     # rosterQuery = f"SELECT * FROM `student_info.roster`"
     # roster_df = fetchDataFromBigQuery(rosterQuery)
 
-    deleteAllDataFromTable(project_id, dataset_id, table_id)
+    # deleteAllDataFromTable(project_id, dataset_id, table_id)
 
     # Upload the data to BigQuery
     uploadToBigQuery(cleanedDataFrame, tableSchema, project_id, dataset_id, table_id)

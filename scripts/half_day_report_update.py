@@ -1,7 +1,7 @@
 from _dataManager import *
 
 
-scriptName = "refactorTest"
+scriptName = "half_day_report_update"
 
 
 # Constants

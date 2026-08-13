@@ -6,7 +6,6 @@ import os
 from colorama import init, Fore
 init(autoreset=True)
 
-
 SCOPES = [
     "https://www.googleapis.com/auth/cloud-platform",
     "https://www.googleapis.com/auth/drive",
@@ -108,7 +107,6 @@ def readCSV(source_folder):
         )
         return csv_file, df
 
-
 def convertToStandardDate(date_str):
     # if date_str is null, return null
     if pd.isnull(date_str):
@@ -131,7 +129,7 @@ def convertToStandardTime(time_str):
     return f"{hour:02d}:{minute:02d}:{second:02d}"
 
 def getSchoolYear(date):
-    year = int(date.split('-')[0])
+    year = int(date.split('-')[0]) % 100
     month = int(date.split('-')[1])
     if month > 7:
         return f"SY{year+1}"
@@ -145,3 +143,4 @@ def getSemester(date):
         return "S1"
     else:
         return "S2"
+    

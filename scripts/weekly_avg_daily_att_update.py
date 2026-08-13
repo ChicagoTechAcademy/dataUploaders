@@ -1,193 +1,271 @@
+import pandas as pd
 import os
 import csv
-import pandas as pd
-import pandas_gbq
-from google.cloud import bigquery
-from datetime import datetime
-
-# Define your GCP project ID and BigQuery dataset ID
-project_id = "chitechdb"
-dataset_id = "attendance"
-table_id = "weekly-avg-daily-att"
-
-# Specify the paths
-source_folder = "../dataUploaders/weekly-avg-att"
-destination_folder = "../dataUploaders/archivedFiles"
-cleaned_file_name = "cleaned_weekly_avg_daily_att.csv"
-
-# Prompt the user for the week number
-week_number = input("Enter the week number (e.g., W01): ")
-
-
-# Create a list to store the cleaned rows
-cleaned_rows = []
-
-
-# Function to get today's date and move the file to done&uploaded folder
-def moveSourceFileToUsedFolder():
-    # Generate the new file name with the date
-    current_date = datetime.now().strftime("%Y-%m-%d")
-    new_file_name = f"weekly-avg-att-{current_date}.csv"
-    destination_file_path = os.path.join(destination_folder, new_file_name)
-
-    # Open the CSV file for writing
-    with open(destination_file_path, "w", newline="") as csv_file:
-        # Create a CSV writer
-        writer = csv.writer(csv_file)
-        # Write the cleaned rows to the CSV file
-        writer.writerows(cleaned_rows)
-        # Delete the source file
-        os.remove(source_file_path)
-
-    print(
-        f"File '{csv_file}' has been saved as '{new_file_name}' and moved to '{destination_folder}'."
-    )
-
-
-# List all files in the source folder
-file_list = os.listdir(source_folder)
-
-# Check if there is a .csv file in the folder
-csv_files = [file for file in file_list if file.endswith(".csv")]
-
-if csv_files:
-    csv_file = csv_files[0]  # Get the first (and only) CSV file in the list
-    source_file_path = os.path.join(source_folder, csv_file)
-
-
-# Open the CSV file for reading
-with open(source_file_path, "r") as csv_file:
-    # Create a CSV reader
-    reader = csv.reader(csv_file)
-
-    client = bigquery.Client(project=project_id)
-
-    if client:
-        print("BigQuery client initialized.")
-
-        # Add the header row to the list of cleaned rows
-        cleaned_rows.append(
-            [
-                "id",
-                "name",
-                "daysEnrolled",
-                "daysNotEnrolled",
-                "daysPresent",
-                "daysExcused",
-                "daysNotExcused",
-                "week",
-                "sy",
-                "attPercentage",
-                "excusedPercentage",
-            ]
-        )
-        # Iterate through all rows in the CSV file
-        for row in reader:
-            # Check if the first cell in the row is a number
-            if row and row[0].isdigit():
-                # Check if the 4th cell is blank
-                if row[3]:
-                    # Keep only the specified cells from the row
-                    daysEnrolled = float(row[9])
-                    daysPresent = float(row[12])
-                    daysExcused = float(row[14])
-                    attPercentage = (
-                        (daysPresent / daysEnrolled) * 100 if daysEnrolled != 0 else 0
-                    )
-                    excusedPercentage = (
-                        ((daysPresent + daysExcused) / daysEnrolled) * 100
-                        if daysEnrolled != 0
-                        else 0
-                    )
-                    cleaned_row = [
-                        int(row[0]),  # id
-                        row[3],  # name
-                        daysEnrolled,  # daysEnrolled
-                        float(row[11]),  # daysNotEnrolled
-                        daysPresent,  # daysPresent
-                        daysExcused,  # daysExcused
-                        float(row[15]),  # daysNotExcused
-                        week_number,  # week
-                        "SY24",  # sy
-                        attPercentage,  # attPercentage
-                        excusedPercentage,  # excusedPercentage
-                    ]
-                else:
-                    # Check if the 22nd cell is blank
-                    if row[21]:
-                        # Keep only the specified cells from the row
-                        daysEnrolled = float(row[16])
-                        daysPresent = float(row[21])
-                        daysExcused = float(row[23])
-                        attPercentage = (
-                            (daysPresent / daysEnrolled) * 100
-                            if daysEnrolled != 0
-                            else 0
-                        )
-                        excusedPercentage = (
-                            ((daysPresent + daysExcused) / daysEnrolled) * 100
-                            if daysEnrolled != 0
-                            else 0
-                        )
-                        cleaned_row = [
-                            int(row[0]),
-                            row[5],
-                            daysEnrolled,
-                            float(row[18]),  # daysNotEnrolled
-                            daysPresent,
-                            daysExcused,
-                            float(row[24]),  # daysNotExcused
-                            week_number,
-                            "SY24",
-                            attPercentage,
-                            excusedPercentage,
-                        ]
-                    else:
-                        # Keep only the specified cells from the row
-                        daysEnrolled = float(row[16])
-                        daysPresent = float(row[23])
-                        daysExcused = float(row[25])
-                        attPercentage = (
-                            (daysPresent / daysEnrolled) * 100
-                            if daysEnrolled != 0
-                            else 0
-                        )
-                        excusedPercentage = (
-                            ((daysPresent + daysExcused) / daysEnrolled) * 100
-                            if daysEnrolled != 0
-                            else 0
-                        )
-                        cleaned_row = [
-                            int(row[0]),
-                            row[5],
-                            daysEnrolled,
-                            float(row[18]),  # daysNotEnrolled
-                            daysPresent,
-                            daysExcused,
-                            float(row[26]),  # daysNotExcused
-                            week_number,
-                            "SY24",
-                            attPercentage,
-                            excusedPercentage,
-                        ]
-                # Add the cleaned row to the list of cleaned rows
-                cleaned_rows.append(cleaned_row)
-
-
-moveSourceFileToUsedFolder()
-
-# Convert the cleaned rows list to a DataFrame
-cleaned_df = pd.DataFrame(cleaned_rows[1:], columns=cleaned_rows[0])
-destination_file_path = os.path.join(destination_folder, cleaned_file_name)
-# Save the cleaned DataFrame to a new CSV file
-cleaned_df.to_csv(destination_file_path, index=False)
-
-# Upload cleaned data to BigQuery table
-pandas_gbq.to_gbq(
-    cleaned_df,
-    f"{project_id}.{dataset_id}.{table_id}",
-    project_id=project_id,
-    if_exists="append",
+from _dataManager import (
+    readCSV,
+    uploadToBigQuery,
+    deleteAllDataFromTable,
+    archiveSourceFile,
+    convertToStandardDate,
 )
 
-print("CSV data uploaded to BigQuery table")
+from colorama import init, Fore
+init(autoreset=True)
+
+scriptName = "Weekly Avg Daily Attendance Update"
+
+# Constants
+project_id = "chitechdb"
+dataset_id = "attendance"
+table_id = "weeklyAttendance"
+source_folder = f"../dataUploaders/{table_id}"
+
+tableSchema = [
+    {"name": "entryID", "type": "INTEGER"},
+    {"name": "week", "type": "STRING"},
+    {"name": "id", "type": "INTEGER"},
+    {"name": "name", "type": "STRING"},
+    {"name": "daysEnrolled", "type": "FLOAT"},
+    {"name": "daysNotEnrolled", "type": "FLOAT"},
+    {"name": "daysPresent", "type": "FLOAT"},
+    {"name": "daysExcused", "type": "FLOAT"},
+    {"name": "daysNotExcused", "type": "FLOAT"},
+]
+
+
+# Define the column name mappings
+column_mappings = {
+    "entryID": "entryID",
+    "id": "id",
+    "name": "name",
+    "week": "week",
+    "daysEnrolled": "daysEnrolled",
+    "daysNotEnrolled": "daysNotEnrolled",
+    "daysPresent": "daysPresent",
+    "daysExcused": "daysExcused",
+    "daysNotExcused": "daysNotExcused",
+}
+
+
+
+# Get the entry ID from the user
+def getEntryID():
+    # entryID = input(Fore.CYAN + "Enter the entry ID for this roster YYYYMMDDX: ")
+
+    # find todays date, and reformat it as YYYYMMDD, and add a 1 at the end
+    entryID = pd.Timestamp.now().strftime("%Y%m%d") + "1"
+
+    print(Fore.CYAN + f"The EntryID is {entryID}.")
+
+    return int(entryID)
+
+def getWeek():
+    return input(Fore.CYAN + "Enter the week for this roster (W01, W02, ...): ")
+
+
+def prepareCSVFile(source_folder):
+    """
+    Open each CSV in the source folder (without using pandas),
+    remove empty cells from each row, and rewrite the file in place.
+
+    Notes:
+    - An "empty cell" is any field that, after stripping whitespace, is an empty string.
+    - Rows that become empty after removing empty cells are skipped.
+    - This keeps the remaining cell order and left-compacts non-empty values.
+    """
+    csv_files = [f for f in os.listdir(source_folder) if f.lower().endswith('.csv')]
+
+    if not csv_files:
+        print(Fore.YELLOW + f"No CSV files found in '{source_folder}'.")
+        return
+
+    for csv_file in csv_files:
+        csv_path = os.path.join(source_folder, csv_file)
+
+        # Read all rows
+        raw_rows = []
+        with open(csv_path, 'r', newline='', encoding='utf-8') as infile:
+            reader = csv.reader(infile)
+            for row in reader:
+                raw_rows.append(row)
+
+# Look through indexed column 6 to find rows that start with "Name". When you find one, save a reference to this row number called "tempRow". In that row number, look at the next rows until you find one that is blank. Shift all of those rows into indexed column 4. 
+
+        # Then look at the row number that is saved in "tempRow". Look at the columns in that row until you find the first column that has "Enrolled". Look at the next rows in that column until you find one that is blank. Shift all of those rows into indexed column 10.
+
+        # Then look at the row number that is saved in "tempRow", look at the next columns in that row until you find the second column that has "Enrolled". Look at the next rows in that column until you find one that is blank. Shift all of those rows into indexed column 12.
+
+        # Then look at the row number that is saved in "tempRow", look at the columns in that row until you find a column that has "Present". Look at the next rows in that column until you find one that is blank. Shift all of those rows into indexed column 13.
+
+        # Then look at the row number that is saved in "tempRow", look at the next columns in that row until you find the first column that has "Excused". Look at the next rows in that column until you find one that is blank. Shift all of those rows into indexed column 15.
+
+        # Then look at the row number that is saved in "tempRow", look at the next columns in that row until you find the 2nd column that has "Excused". Look at the next rows in that column until you find one that is blank. Shift all of those rows into indexed column 16.
+
+        # Then repeat this for the rest of the document. 
+        
+
+                # ...existing code...
+
+        def _get_cell(rows, r_idx, c_idx):
+            if r_idx >= len(rows):
+                return ""
+            row = rows[r_idx]
+            if c_idx >= len(row):
+                return ""
+            return str(row[c_idx]).strip()
+
+        def _set_cell(rows, r_idx, c_idx, value):
+            row = rows[r_idx]
+            if c_idx >= len(row):
+                row.extend([""] * (c_idx + 1 - len(row)))
+            row[c_idx] = value
+
+        def _shift_down_until_blank(rows, start_row, src_col, dst_col):
+            """
+            Starting at start_row, move values from src_col to dst_col
+            until a blank cell is found in src_col.
+            """
+            for r in range(start_row, len(rows)):
+                val = _get_cell(rows, r, src_col)
+                if val == "":
+                    break
+                _set_cell(rows, r, dst_col, val)
+                _set_cell(rows, r, src_col, "")
+
+        # Find each section where column index 6 starts with "Name"
+        for tempRow in range(len(raw_rows)):
+            if not _get_cell(raw_rows, tempRow, 6).lower().startswith("name"):
+                continue
+
+            header_row = raw_rows[tempRow]
+            lowered = [str(x).strip().lower() for x in header_row]
+
+            # Source columns discovered from the tempRow header
+            enrolled_cols = [i for i, v in enumerate(lowered) if "enrolled" in v]
+            excused_cols = [i for i, v in enumerate(lowered) if "excused" in v]
+            present_col = next((i for i, v in enumerate(lowered) if "present" in v), None)
+
+            # 1) Name block: col 6 -> col 4
+            _shift_down_until_blank(raw_rows, tempRow + 1, 6, 4)
+
+            # 2) First "Enrolled": -> col 10
+            if len(enrolled_cols) >= 1:
+                _shift_down_until_blank(raw_rows, tempRow + 1, enrolled_cols[0], 10)
+
+            # 3) Second "Enrolled": -> col 12
+            if len(enrolled_cols) >= 2:
+                _shift_down_until_blank(raw_rows, tempRow + 1, enrolled_cols[1], 12)
+
+            # 4) "Present": -> col 13
+            if present_col is not None:
+                _shift_down_until_blank(raw_rows, tempRow + 1, present_col, 13)
+
+            # 5) First "Excused": -> col 15
+            if len(excused_cols) >= 1:
+                _shift_down_until_blank(raw_rows, tempRow + 1, excused_cols[0], 15)
+
+            # 6) Second "Excused": -> col 16
+            if len(excused_cols) >= 2:
+                _shift_down_until_blank(raw_rows, tempRow + 1, excused_cols[1], 16)
+
+        # ...existing code...
+
+        # Skip the first 5 rows
+        raw_rows = raw_rows[5:]
+
+        cleaned_rows = []
+        for row in raw_rows:
+            # Clear the 3rd, 7th, 8th, and 9th columns if they exist
+            for idx in [1,2,3,5,6,7,8,9,11,14]:  # zero-based indexing (3rd, 7th, 8th, 9th)
+                if idx < len(row):
+                    row[idx] = ''
+            # Remove empty cells (after stripping whitespace)
+            new_row = [cell.strip() for cell in row if cell.strip() != '']
+            if new_row:  # keep only rows with at least one non-empty cell
+                cleaned_rows.append(new_row)
+
+        # Rename the first row as headers
+        headers = ["id","name","daysEnrolled","daysNotEnrolled","daysPresent","daysExcused","daysNotExcused","drop","drop","drop"]
+        if cleaned_rows:
+            cleaned_rows[0] = headers
+
+        # Write cleaned rows back to the same file
+        with open(csv_path, 'w', newline='', encoding='utf-8') as outfile:
+            writer = csv.writer(outfile)
+            writer.writerows(cleaned_rows)
+
+        print(Fore.GREEN + f"File '{csv_file}' cleaned and saved in place (empty cells removed).")
+
+
+# Clean the data
+def cleanData(df):
+    entryID = getEntryID()
+    week = getWeek()
+
+    # 3) Delete any row where the first cell (id) is not an 8-digit number,
+    id_str = df["id"].astype(str).str.strip()
+    mask_8_digit = id_str.str.fullmatch(r"\d{8}").fillna(False)
+    df = df[mask_8_digit].copy()
+
+    # 4) Add columns for entryID and week
+    df["entryID"] = int(entryID)
+    df["week"] = week
+
+    # 5) Ensure numeric types: id -> int, attendance fields -> float
+    #    Keep header row safe by re-deriving masks post-filter
+    id_str = df["id"].astype(str).str.strip()
+    mask_8_digit = id_str.str.fullmatch(r"\d{8}").fillna(False)
+    # Convert only valid ID rows to int; leave header row as-is (string)
+    df.loc[mask_8_digit, "id"] = id_str[mask_8_digit].astype(int)
+
+    numeric_cols = [
+        "daysEnrolled",
+        "daysNotEnrolled",
+        "daysPresent",
+        "daysExcused",
+        "daysNotExcused",
+    ]
+    for c in numeric_cols:
+        df[c] = pd.to_numeric(df[c], errors="coerce").astype(float)
+
+    # 6) Reorder columns to match the BigQuery schema
+    ordered_cols = [
+        "entryID",
+        "week",
+        "id",
+        "name",
+        "daysEnrolled",
+        "daysNotEnrolled",
+        "daysPresent",
+        "daysExcused",
+        "daysNotExcused",
+    ]
+    df = df[ordered_cols]
+
+    return df
+
+
+def doWork():
+    """
+    Main function for the script.
+    """
+    print(Fore.YELLOW + f"Starting {scriptName} script...")
+
+    prepareCSVFile(source_folder)
+
+    # # Read in the first .csv file found
+    csv_file, rawDataFrame = readCSV(source_folder)
+
+    # # Clean the data
+    cleanedDataFrame = cleanData(rawDataFrame)
+
+    # # Upload the data to BigQuery
+    uploadToBigQuery(cleanedDataFrame, tableSchema, project_id, dataset_id, table_id)
+
+    # # Archive the source file
+    archiveSourceFile(cleanedDataFrame, csv_file, source_folder, table_id)
+
+    print(Fore.GREEN + f"{scriptName} data pull complete.")
+
+
+doWork()

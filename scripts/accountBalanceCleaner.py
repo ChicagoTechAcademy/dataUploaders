@@ -6,93 +6,67 @@ scriptName = "accountBalanceCleaner"
 
 # Constants
 project_id = "chitechdb"
-dataset_id = "student_info"
+dataset_id = "studentInfo"
 table_id = "accountBalances"
 source_folder = f"../dataUploaders/{table_id}"
 
 schema = [
-    {"name": "name", "type": "STRING"},
+    {"name": "entryID", "type": "INTEGER"},
     {"name": "id", "type": "INTEGER"},
-    {"name": "yog", "type": "INTEGER"},
     {"name": "balance", "type": "FLOAT"},
 ]
 
-# Desired column names
-column_names = [
-    "id",
-    "balance",
-    "drop1",
-    "drop2",
-    "drop3",
-    "drop4",
-    "drop5",
-    "drop6",
-    "drop7",
-    "drop8",
-    "drop9",
-    "drop10",
-    "drop11",
-    "drop12",
-    "drop13",
-    "drop14",
-    "drop15",
-]
+
+# Get the entry ID
+def getEntryID():
+
+    # find todays date, and reformat it as YYYYMMDD,
+    entryID = pd.Timestamp.now().strftime("%Y%m%d")
+
+    print(Fore.CYAN + f"The EntryID is {entryID}.")
+
+    return int(entryID)
 
 
+# take in a dataframe and extract relevant columns
 def clean_data(df):
-    print(Fore.WHITE + "Cleaning data...")
+   
+   entryID = getEntryID()
 
-    # Rename columns
-    df.columns = column_names
+   # delete all columns except the 2nd and 4th
+   df = df.iloc[:, [1, 3]].copy()
 
-    df = df.reset_index(drop=True)  # Reset index
-    current_id = (
-        None  # This will store the value from "drop2" whenever we find "Student ID:"
-    )
+    # rename the columns
+   df.columns = ['TEXT', 'ID']
 
-    for index in range(len(df)):
-        if df.loc[index, "id"] == "Student ID:":
-            current_id = df.loc[index, "drop2"]
-        elif current_id is not None:
-            df.loc[index, "id"] = current_id
+    # delete all empty rows
+   df = df.dropna(how='all')
 
-    # Drop unwanted columns
-    df = df[["id", "balance"]]
+    # go through each row in the ID column. When you find a number, check if the next row is blank. If so, copy that number. If not, keep the original value.
+   df = df.reset_index(drop=True)  # Ensure the index is sequential
+   for i in range(len(df) - 1):
+       if pd.notna(df.at[i, 'ID']) and pd.isna(df.at[i + 1, 'ID']):
+           df.at[i + 1, 'ID'] = df.at[i, 'ID']
 
-    # Filter rows based on 'bal'
-    df = df[df["balance"].str.startswith("This is a current", na=False)]
+    # go through each row in the TEXT column. If it's not a string, delete that row.
+   df = df[df['TEXT'].apply(lambda x: isinstance(x, str))]
 
-    # Remove 'This is a current balance' from 'bal'
-    # This is a current statement of your account.  The total amount due is  $ 150.00  and is payable upon the indicated date.
-    df["balance"] = df["balance"].str.replace(
-        "This is a current statement of your account.  The total amount due is  $ ", ""
-    )
-    df["balance"] = df["balance"].str.replace(
-        "  and is payable upon the indicated date.  ", ""
-    )
+   # go through each row in the TEXT column. If it doesn't start with "T", delete that row.
+   df = df[df['TEXT'].str.startswith("This is a", na=False)]
 
-    # if the balance column has ( ) around it, then convert to a negative number
-    df["balance"] = df["balance"].apply(
-        lambda x: x.replace("(", "-").replace(")", "") if "(" in x else x
-    )
+   # Go through the TEXT column. For each row, extract the number after "$" and convert it to a float
+   df['BALANCE'] = df['TEXT'].str.extract(r'\$ ([\d,]+\.\d{2})')[0].astype(float)
 
-    # convert the balance column to float
-    df["balance"] = df["balance"].astype(float)
+   # drop the TEXT column
+   df = df.drop(columns=['TEXT'])
 
-    print(Fore.BLUE + "Getting names and YOG from data base...")
-    # # Fetch student information from roster
-    unique_ids = df["id"].dropna().unique().astype(int)  # Convert IDs to integers
-    roster_df = fetchDataFromBigQuery(
-        f"SELECT name, id, yog FROM `student_info.roster` WHERE id IN ({', '.join(map(str, unique_ids))})"
-    )
-    # # Merge roster data to df based on 'id'
-    df = pd.merge(df, roster_df, on="id", how="left")
+   # add the entry ID
+   df['ENTRY_ID'] = entryID
 
-    # # Reorder columns
-    df = df[["name", "id", "yog", "balance"]]
+   # make sure the values in the ID column are integers
+   df['ID'] = df['ID'].astype(int)
 
-    print(Fore.WHITE + "Merging data...")
-    return df
+   return df
 
 
 def doWork():

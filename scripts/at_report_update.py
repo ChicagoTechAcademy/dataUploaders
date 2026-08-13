@@ -1,12 +1,5 @@
-from _dataManager import (
-    readCSV,
-    uploadToBigQuery,
-    deleteDataBetweenDates,
-    archiveSourceFile,
-    convertToStandardDate,
-    getSchoolYear,
-    getSemester,
-)
+from _dataManager import *
+
 
 from colorama import init, Fore
 
@@ -23,6 +16,7 @@ table_id = "at-report"
 source_folder = f"../dataUploaders/{table_id}"
 
 tableSchema = [
+    {"name": "entryID", "type": "INTEGER"},
     {"name": "name", "type": "STRING"},
     {"name": "id", "type": "INTEGER"},
     {"name": "date", "type": "DATE"},
@@ -30,9 +24,6 @@ tableSchema = [
     {"name": "course", "type": "STRING"},
     {"name": "class", "type": "STRING"},
     {"name": "period", "type": "STRING"},
-    {"name": "tardy", "type": "BOOLEAN"},
-    {"name": "absent", "type": "BOOLEAN"},
-    {"name": "yog", "type": "INTEGER"},
     {"name": "sy", "type": "STRING"},
     {"name": "semester", "type": "STRING"},
 ]
@@ -50,7 +41,22 @@ column_mappings = {
     "Tardy?": "tardy",
     "Absent?": "absent",
     "Student > YOG": "yog",
+    "entryID": "entryID",
 }
+
+# Get the entry ID from the user
+def getEntryID():
+    # entryID = input(Fore.CYAN + "Enter the entry ID for this roster YYYYMMDDX: ")
+
+    # find todays date, and reformat it as YYYYMMDD,
+    entryID = pd.Timestamp.now().strftime("%Y%m%d")
+
+    print(Fore.CYAN + f"The EntryID is {entryID}.")
+
+    return int(entryID)
+
+def getWeek():
+    return input(Fore.CYAN + "Enter the week for this roster (W01, W02, ...): ")
 
 
 def cleanData(df):
@@ -59,8 +65,14 @@ def cleanData(df):
     """
     print(Fore.RESET + "Processing data...")
 
+    # Create entryID
+    df["entryID"] = getEntryID()
+
     # Rename columns
     df.rename(columns=column_mappings, inplace=True)
+
+    # drop columns yog tardy, absent
+    df.drop(columns=["yog", "tardy", "absent"], inplace=True)
 
     # Convert date and derive related columns
     df["date"] = df["date"].apply(convertToStandardDate)

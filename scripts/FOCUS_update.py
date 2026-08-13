@@ -2,22 +2,21 @@ from _dataManager import *
 import os
 
 
-scriptName = "focus_sweep_update"
+scriptName = "FOCUS_update"
 
 
 # Constants
 project_id = "chitechdb"
 dataset_id = "attendance"
-table_id = "focus-sweep"
+table_id = "FOCUS"
 source_folder = f"../dataUploaders/{table_id}"
 
 schema = [
+    {"name": "entryID", "type": "INTEGER"},
     {"name": "id", "type": "INTEGER"},
     {"name": "name", "type": "STRING"},
     {"name": "status", "type": "STRING"},
     {"name": "period", "type": "STRING"},
-    {"name": "row_number", "type": "INTEGER"},
-    {"name": "student_tardy_count", "type": "INTEGER"},
     {"name": "date", "type": "DATE"},
     {"name": "time", "type": "TIME"},
 ]
@@ -34,6 +33,19 @@ column_mappings = {
     "Textbox6": "student_tardy_count",
 }
 
+# Get the entry ID from the user
+def getEntryID():
+    # entryID = input(Fore.CYAN + "Enter the entry ID for this roster YYYYMMDDX: ")
+
+    # find todays date, and reformat it as YYYYMMDD,
+    entryID = pd.Timestamp.now().strftime("%Y%m%d")
+
+    print(Fore.CYAN + f"The EntryID is {entryID}.")
+
+    return int(entryID)
+
+def getWeek():
+    return input(Fore.CYAN + "Enter the week for this roster (W01, W02, ...): ")
 
 def cleanData(df):
     """
@@ -45,17 +57,17 @@ def cleanData(df):
     # Rename columns based on predefined mappings
     df.rename(columns=column_mappings, inplace=True, errors="raise")
 
-    # Convert swipe_time to date and time columns
-    df["date"] = df["swipe_time"].str.split(" ").str[0].apply(convertToStandardDate)
-    df["time"] = df["swipe_time"].str.split(" ").str[1]
+    # Convert swipe_time to date and time columns. Time is given as 24-hour format HH:MM:SS, and should stay that way.
+    # Example: "2023-08-30 08:15:00"
+    dt = pd.to_datetime(df["swipe_time"].astype(str).str.strip(), errors="coerce")
+    df["date"] = dt.dt.date
+    df["time"] = dt.dt.time
 
     # Drop unnecessary columns
-    df.drop(columns=["swipe_time", "division"], inplace=True, errors="ignore")
+    df.drop(columns=["swipe_time", "division","row_number", "student_tardy_count"], inplace=True, errors="ignore")
 
     # Convert id, row_number, and student_tardy_count to integers
     df["id"] = df["id"].astype(int)
-    df["row_number"] = df["row_number"].astype(int)
-    df["student_tardy_count"] = df["student_tardy_count"].astype(int)
 
     # Convert name, status, and period to strings
     df["name"] = df["name"].astype(str)
@@ -63,8 +75,15 @@ def cleanData(df):
     df["period"] = df["period"].astype(str)
 
     # Convert date and time to date and time types
-    df["date"] = pd.to_datetime(df["date"])
-    df["time"] = pd.to_datetime(df["time"])
+    # Time should be given as 24-hour format HH:MM:SS
+    # df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.date
+    # df["time"] = pd.to_datetime(df["time"], format="%H:%M:%S", errors="coerce").dt.time
+
+    # add entryID
+    df["entryID"] = getEntryID()
+
+    # reorder columns
+    df = df[["entryID", "id", "name", "status", "period", "date", "time"]]
 
     return df
 
@@ -80,7 +99,10 @@ def find_csv_file(folder_path):
     return None
 
 
-def remove_first_three_lines(csv_path):
+def prepareCSVFile(source_folder):
+
+    csv_path = find_csv_file(source_folder)
+
     """
     Removes the first three lines from a CSV file.
     """
@@ -97,8 +119,7 @@ def doWork():
     """
     print(f"Starting {scriptName} script...")
 
-    temp = find_csv_file(source_folder)
-    remove_first_three_lines(temp)
+    prepareCSVFile(source_folder)
 
     # Read in the first .csv file found
     csv_file, rawDataFrame = readCSV(source_folder)

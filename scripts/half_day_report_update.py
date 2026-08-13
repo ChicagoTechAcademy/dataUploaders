@@ -11,52 +11,87 @@ table_id = "half-day-report"
 source_folder = f"../dataUploaders/{table_id}"
 
 tableSchema = [
+    {"name": "entryID", "type": "INTEGER"},
+    {"name": "week", "type": "STRING"},
     {"name": "date", "type": "DATE"},
     {"name": "name", "type": "STRING"},
-    {"name": "grade", "type": "STRING"},
-    {"name": "code", "type": "STRING"},
-    {"name": "percentAbs", "type": "FLOAT"},
     {"name": "id", "type": "INTEGER"},
-    {"name": "sy", "type": "STRING"},
-    {"name": "semester", "type": "STRING"},
+    {"name": "yog", "type": "INTEGER"},
+    {"name": "code", "type": "STRING"},
+    {"name": "excused", "type": "BOOLEAN"},
+    {"name": "percentAbs", "type": "FLOAT"},
 ]
 
 COLUMN_MAPPINGS = {
-    "Student > Name": "name",
     "Date": "date",
+    "Student > Name": "name",
+    "Student ID": "id",
     "Student > Grade": "grade",
-    "Student > Homeroom": "homeroom",
     "Code": "code",
     "Time": "time",
     "Absent?": "absent",
     "Tardy?": "tardy",
     "Excused?": "excused",
     "PcntAbs": "percentAbs",
-    "Other": "other",
+    "Other": "other", 
 }
 
 
+
+# Get the entry ID from the user
+def getEntryID():
+    # entryID = input(Fore.CYAN + "Enter the entry ID for this roster YYYYMMDDX: ")
+
+    # find todays date, and reformat it as YYYYMMDD,
+    entryID = pd.Timestamp.now().strftime("%Y%m%d")
+
+    print(Fore.CYAN + f"The EntryID is {entryID}.")
+
+    return int(entryID)
+
+def getWeek():
+    return input(Fore.CYAN + "Enter the week for this roster (W01, W02, ...): ")
+
+
 def cleanData(df):
-    print(Fore.BLUE + "BigQuery client initialized.")
+    entryID = getEntryID()
+    week = getWeek()
 
-    df = df.dropna(how="all")
+    print("Cleaning data...")
+
+    # Columns are named Date	Student > Name	Student > Grade	Student ID	Code	Time	Absent?	Tardy?	Excused?	PcntAbs	Other
+    # Rename columns based on the mappings
     df.rename(columns=COLUMN_MAPPINGS, inplace=True)
-    df = drop_unnecessary_columns(df)
+    
+    # get the year of graduation from the grade column and put it in a new column 'yog'. Then drop the grade column. Do this by mapping: 9 -> 2029, 10 -> 2028, 11 -> 2027, 12 -> 2026
+    grade_to_yog = {
+        9: 2029,
+        10: 2028,
+        11: 2027,
+        12: 2026
+    }
+    df["yog"] = df["grade"].map(grade_to_yog)
+    df.drop(columns=["grade"], inplace=True, errors="ignore")
 
-    query = "SELECT name, id FROM `chitechdb.student_info.allStudents`"
-    mapping_df = fetchDataFromBigQuery(query)
-    pd.merge(df, mapping_df, on="name", how="left")
+    # Drop time, absent, tardy, other columns
+    df.drop(columns=["time", "absent", "tardy", "other"], inplace=True, errors="ignore")
 
+    # Add 'entryID' and 'week' columns
+    df['entryID'] = entryID
+    df['week'] = week
+
+    # ensure all data types are correct
+    df["entryID"] = df["entryID"].astype(int)
+    df['week'] = df['week'].astype(str)
     df["date"] = df["date"].apply(convertToStandardDate)
-    df["sy"] = df["date"].apply(getSchoolYear)
-    df["semester"] = df["date"].apply(getSemester)
+    df["name"] = df["name"].astype(str)
+    df["id"] = df["id"].astype(int)
+    df["yog"] = df["yog"].astype(int)
+    df["code"] = df["code"].astype(str)
+    df["excused"] = df["excused"].astype(bool)
+    df["percentAbs"] = df["percentAbs"].astype(float)
 
     return df
-
-
-def drop_unnecessary_columns(df):
-    columns_to_remove = ["time", "absent", "tardy", "excused", "other", "homeroom"]
-    return df.drop(columns=columns_to_remove)
 
 
 def doWork():

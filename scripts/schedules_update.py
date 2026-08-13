@@ -1,4 +1,8 @@
+import datetime
+
+from colorama import Fore
 from _dataManager import *
+
 
 
 scriptName = "schedule_update"
@@ -6,37 +10,42 @@ scriptName = "schedule_update"
 
 # Constants
 project_id = "chitechdb"
-dataset_id = "academics"
-table_id = "schedules"
+dataset_id = "schedules"
+table_id = "studentSchedules"
 source_folder = f"../dataUploaders/{table_id}"
 
 tableSchema = [
-        {"name": "id", "type": "INTEGER"},
-        {"name": "lastName", "type": "STRING"},
-        {"name": "firstName", "type": "STRING"},
-        {"name": "grade", "type": "INTEGER"},
-        {"name": "classCode", "type": "STRING"},
-        {"name": "class", "type": "STRING"},
-        {"name": "room", "type": "STRING"},
-        {"name": "teacher", "type": "STRING"},
-        {"name": "period", "type": "STRING"},
-        {"name": "yog", "type": "INTEGER"},
-        {"name": "scheduleAsOf", "type": "DATE"},
-        {"name": "sy", "type": "STRING"},
-        {"name": "semester", "type": "STRING"},
+    {"name": "entryID", "type": "INTEGER"},
+    {"name": "id", "type": "INTEGER"},
+    {"name": "classCode", "type": "STRING"},
+    {"name": "class", "type": "STRING"},
+    {"name": "teacher", "type": "STRING"},
+    {"name": "period", "type": "STRING"},
+    {"name": "semester", "type": "STRING"},
+    {"name": "sy", "type": "STRING"},
     ]
 
 column_mappings = {
-    "LastName": "lastName",
-    "FirstName": "firstName",
     "Student ID": "id",
-    "Grade": "grade",
     "Class": "classCode",
     "Description": "class",
-    "Clssrm": "room",
     "Name": "teacher",
     "Schedule": "period",
 }
+
+# Get the entry ID from the user
+def getEntryID():
+    # entryID = input(Fore.CYAN + "Enter the entry ID for this roster YYYYMMDDX: ")
+
+    # find todays date, and reformat it as YYYYMMDD,
+    entryID = pd.Timestamp.now().strftime("%Y%m%d")
+
+    print(Fore.CYAN + f"The EntryID is {entryID}.")
+
+    return int(entryID)
+
+def getWeek():
+    return input(Fore.CYAN + "Enter the week for this roster (W01, W02, ...): ")
 
 
 def cleanData(df):
@@ -49,33 +58,30 @@ def cleanData(df):
     # Drop unnecessary columns
     df.drop(
         columns=[
+            "LastName",
+            "FirstName",
             "MiddleName",
             "SpecialEdStus",
+            "Grade",
             "Homeroom",
             "Inclusion?",
             "SecType",
+            "Clssrm",
             "Total",
             "Max",
         ],
         inplace=True,
         errors="ignore",
     )
-    print("Dropped unnecessary columns.")
 
     # Rename columns based on predefined mappings
     df.rename(columns=column_mappings, inplace=True, errors="raise")
-    print(f"Renamed columns to: {', '.join(column_mappings.values())}")
 
-    # Add 'scheduleAsOf', 'sy', and 'semester' columns
-    df["scheduleAsOf"] = datetime.now().strftime("%Y-%m-%d")
-    df["sy"] = "SY24"
+    # Add 'entryID' column
+    df["entryID"] = getEntryID()
 
-    # Get the semester by reading the 6th character of the classCode.
-    # If it's a number 1, then set the semester to S1, if it's a number 2, then set the semester to S2. Otherwise drop the row.
-    # df["semester"] = df["classCode"].apply(lambda x: "S1" if x[5] == "1" else "S2" if x[5] == "2" else None)
-    
-    # Get the classType by reading the 7th character of the classCode.
-    # If it's the letter "N", then change the semester to "Other". Othwerwise, keep the semester as is.
+    # Add 'sy' & 'semester' columns
+    df["sy"] = "SY26"
     df["semester"] = df["classCode"].apply(lambda x: "Other" if x[6] == "N" else "S1" if x[5] == "1" else "S2" if x[5] == "2" else None)
 
     return df

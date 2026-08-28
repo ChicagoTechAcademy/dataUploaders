@@ -1,7 +1,16 @@
-from _dataManager import *
+import os
+import pandas as pd
+from _dataManager import (
+    findExportFile,
+    uploadToBigQuery,
+    deleteDataBetweenDates,
+    archiveSourceFile,
+    convertToStandardDate,
+    getSchoolYear,
+    getSemester,
+)
 
-
-from colorama import init, Fore
+from colorama import init, Fore, Style
 
 init(autoreset=True)
 
@@ -28,21 +37,49 @@ tableSchema = [
     {"name": "semester", "type": "STRING"},
 ]
 
+ORDERED_COLS = [
+    "entryID",
+    "name",
+    "id",
+    "date",
+    "code",
+    "course",
+    "class",
+    "period",
+    "sy",
+    "semester",
+]
 
-# Define the column name mappings
+# Keyed on the NORMALISED header -- the text after the last ">". ASPEN emits
+# this report's headers as either "Master > Class" or "Master Schedule > Class"
+# depending on version, and the legacy mapping only matched the short form, so a
+# version bump would have silently produced a frame with no course column.
+# Normalising collapses both to "Class".
 column_mappings = {
-    "Student > Name": "name",
-    "Student > Student ID": "id",
+    "Name": "name",
+    "Student ID": "id",
     "Date": "date",
     "Code": "code",
-    "Master > Class": "course",
-    "Master > Description": "class",
+    "Class": "course",
+    "Description": "class",
     "Period": "period",
     "Tardy?": "tardy",
     "Absent?": "absent",
-    "Student > YOG": "yog",
-    "entryID": "entryID",
+    "YOG": "yog",
 }
+
+# Pulled but not loaded. "Code" already carries the meaning that Tardy?/Absent?
+# duplicate.
+DROP_COLS = ["yog", "tardy", "absent"]
+
+
+def normaliseHeader(name):
+    """
+    "Master Schedule > Description" and "Master > Description" both become
+    "Description". Everything else is returned trimmed.
+    """
+    return str(name).split(">")[-1].strip()
+
 
 # Get the entry ID from the user
 def getEntryID():
@@ -55,46 +92,129 @@ def getEntryID():
 
     return int(entryID)
 
-def getWeek():
-    return input(Fore.CYAN + "Enter the week for this roster (W01, W02, ...): ")
+
+def readExport(source_folder):
+    """
+    Reads the A/T report export.
+
+    An ordinary CSV with a single header row. The file carries a UTF-8 BOM.
+    Filenames look like QR_2758963764815969128.csv and contain no date, so a
+    stale file here is invisible -- the row count and date range printed below
+    are the only signal you get.
+    """
+    csv_file = findExportFile(source_folder)
+    csv_path = os.path.join(source_folder, csv_file)
+
+    print(Fore.GREEN + f"Opening '{csv_file}'...")
+    df = pd.read_csv(csv_path, encoding="utf-8-sig").dropna(how="all")
+    print(Fore.GREEN + f"Read {len(df)} rows from '{csv_file}'.")
+    return csv_file, df
+
+
+def validateExport(df):
+    """
+    Stops early if the export is not the report this script expects.
+    """
+    required = ["Name", "Student ID", "Date", "Code", "Class", "Description", "Period"]
+    missing = [c for c in required if c not in df.columns]
+    if missing:
+        raise SystemExit(
+            Fore.YELLOW
+            + f"Export is missing expected column(s): {', '.join(missing)}.\n"
+            + f"Columns found (normalised): {', '.join(map(str, df.columns))}\n"
+            + "ASPEN may have renamed a column, or this is the wrong report."
+        )
 
 
 def cleanData(df):
     """
     Cleans, processes and renames columns.
     """
-    print(Fore.RESET + "Processing data...")
+    print("Processing data...")
+
+    # Normalise headers before anything looks at them
+    df = df.rename(columns=normaliseHeader)
+    validateExport(df)
 
     # Create entryID
     df["entryID"] = getEntryID()
 
     # Rename columns
-    df.rename(columns=column_mappings, inplace=True)
+    df = df.rename(columns=column_mappings)
 
-    # drop columns yog tardy, absent
-    df.drop(columns=["yog", "tardy", "absent"], inplace=True)
+    # drop columns yog, tardy, absent
+    df = df.drop(columns=DROP_COLS, errors="ignore")
 
     # Convert date and derive related columns
     df["date"] = df["date"].apply(convertToStandardDate)
+    df = df[df["date"].notna()].copy()
     df["sy"] = df["date"].apply(getSchoolYear)
     df["semester"] = df["date"].apply(getSemester)
 
+    # This export reaches back into the previous school year. Keep only the
+    # current one -- the boundary is August, per _dataManager.getSchoolYear.
+    currentSY = getSchoolYear(pd.Timestamp.now().strftime("%Y-%m-%d"))
+    keep = df["sy"] == currentSY
+    droppedSY = int((~keep).sum())
+    if droppedSY:
+        priorRange = f"{df.loc[~keep, 'date'].min()} to {df.loc[~keep, 'date'].max()}"
+        print(Fore.YELLOW + f"Dropping {droppedSY} row(s) outside {currentSY} ({priorRange}).")
+    df = df[keep].copy()
+
+    if df.empty:
+        raise SystemExit(
+            Fore.YELLOW + f"No rows left after filtering to {currentSY}. "
+            "Check the date range on the export."
+        )
+
+    # Rows with a non-numeric Student ID are footer junk, not students.
+    id_num = pd.to_numeric(df["id"], errors="coerce")
+    isStudent = id_num.notna()
+    dropped = int((~isStudent).sum())
+    if dropped:
+        print(Fore.YELLOW + f"Dropping {dropped} row(s) whose Student ID is not numeric.")
+    df = df[isStudent].copy()
+    df["id"] = id_num[isStudent].astype("int64")
+
+    # period is a STRING: it holds "3" but also "AdvA" and "Lunch/Adv".
+    df["period"] = df["period"].astype(str).str.strip()
+
+    df = df[ORDERED_COLS]
+
     return df
+
+
+def checkATReport(df):
+    """
+    Reports anything odd. Advisory only -- no totals row in this export.
+    """
+    print(Fore.GREEN + "Checking the A/T pull...")
+    print(Fore.GREEN + f"  {len(df)} rows, {df['id'].nunique()} distinct students, "
+                       f"dates {df['date'].min()} to {df['date'].max()}.")
+    print(Fore.GREEN + f"  codes: {df['code'].value_counts().to_dict()}")
+    print(Fore.GREEN + f"  semesters: {df['semester'].value_counts().to_dict()}")
 
 
 def doWork():
     """
     Main function for the script.
     """
-    print(Fore.YELLOW + f"Starting {scriptName} script...")
+    print(Style.BRIGHT + f"Starting {scriptName} script...")
 
-    # Read in the first .csv file found
-    csv_file, rawDataFrame = readCSV(source_folder)
+    # Read in the export. The source file is never opened for writing.
+    csv_file, rawDataFrame = readExport(source_folder)
 
     # Clean the data
     cleanedDataFrame = cleanData(rawDataFrame)
 
-    # purge the table
+    checkATReport(cleanedDataFrame)
+
+    # This report is an event stream: the incoming date range is replaced. Note
+    # the range now covers only the current school year, so re-running cannot
+    # disturb rows from a previous year that are already loaded.
+    # THE DELETE AND THE UPLOAD ARE ONE OPERATION. Enabling the delete without
+    # the upload removes that date range and puts nothing back.
+    # DISABLED -- enable both together when you decide to pull.
     deleteDataBetweenDates(
         project_id,
         dataset_id,
@@ -102,14 +222,15 @@ def doWork():
         cleanedDataFrame["date"].min(),
         cleanedDataFrame["date"].max(),
     )
-
-    # Upload the data to BigQuery
     uploadToBigQuery(cleanedDataFrame, tableSchema, project_id, dataset_id, table_id)
 
     # Archive the source file
+    # NOTE: archiveSourceFile writes the cleaned frame to archivedFiles/ and then
+    # DELETES the source export. Keep a spare copy while testing.
     archiveSourceFile(cleanedDataFrame, csv_file, source_folder, table_id)
 
-    print(Fore.GREEN + f"{scriptName} data pull complete.")
+    print(Style.BRIGHT + f"{scriptName} data pull complete.")
 
 
-doWork()
+if __name__ == "__main__":
+    doWork()

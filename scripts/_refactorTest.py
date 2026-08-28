@@ -1,4 +1,6 @@
 from _dataManager import *
+from colorama import init, Fore, Style
+init(autoreset=True)
 
 
 scriptName = "refactorTest"
@@ -22,7 +24,7 @@ def cleanData(df):
     """
     Cleans the data read in from the CSV file and returns a DataFrame.
     """
-    print(Fore.CYAN + "Cleaning data...")
+    print("Cleaning data...")
 
     # if the balance column has ( ) around it, then convert to a negative number
     df["balance"] = df["balance"].apply(lambda x: x.replace("(", "-").replace(")", "") if "(" in x else x)
@@ -30,7 +32,7 @@ def cleanData(df):
     # convert the balance column to float
     df["balance"] = df["balance"].astype(float)
 
-    print(Fore.CYAN + "Data has been cleaned.")
+    print(Style.BRIGHT + "Data has been cleaned.")
     return df
 
 
@@ -38,7 +40,7 @@ def doWork():
     """
     Main function for the script.
     """
-    print(Fore.YELLOW + f"Starting {scriptName} script...")
+    print(Style.BRIGHT + f"Starting {scriptName} script...")
 
     # Read in the first .csv file found
     csv_file, rawDataFrame = readCSV(source_folder)
@@ -53,13 +55,15 @@ def doWork():
     # deleteAllDataFromTable(project_id, dataset_id, table_id)
 
     # Upload the data to BigQuery
-    uploadToBigQuery(cleanedDataFrame, tableSchema, project_id, dataset_id, table_id)
+    # DISABLED -- enable when you decide to pull.
+    # uploadToBigQuery(cleanedDataFrame, tableSchema, project_id, dataset_id, table_id)
 
     # Archive the source file
     archiveSourceFile(cleanedDataFrame, csv_file, source_folder, table_id)
 
 
-    print(Fore.GREEN + f"{scriptName} data pull complete.")
+    print(Style.BRIGHT + f"{scriptName} data pull complete.")
 
 
-doWork()
+if __name__ == "__main__":
+    doWork()

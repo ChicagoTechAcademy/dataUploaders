@@ -1,4 +1,6 @@
 from _dataManager import *
+from colorama import init, Fore, Style
+init(autoreset=True)
 
 
 scriptName = "dataQuality_update"
@@ -35,7 +37,7 @@ def cleanData(df):
     """
     Cleans the data read in from the CSV file and returns a DataFrame.
     """
-    print(Fore.WHITE + "Getting Data Quality Data from user...")
+    print(Fore.CYAN + "Getting Data Quality Data from user...")
     # Prompt the user for the week number
     week_number = input("Enter the week number (e.g., W01): ")
 
@@ -44,7 +46,7 @@ def cleanData(df):
     total_percent_errors = float(input("Enter the total percent errors: "))
     grade = input("Enter the grade: ")
 
-    print(Fore.CYAN + "Cleaning data...")
+    print("Cleaning data...")
 
     df["week"] = week_number
 
@@ -84,7 +86,7 @@ def doWork():
     """
     Main function for the script.
     """
-    print(Fore.YELLOW + f"Starting {scriptName} script...")
+    print(Style.BRIGHT + f"Starting {scriptName} script...")
 
     # Read in the first .csv file found
     csv_file, rawDataFrame = readCSV(source_folder)
@@ -93,12 +95,14 @@ def doWork():
     cleanedDataFrame = cleanData(rawDataFrame)
 
     # Upload the data to BigQuery
-    uploadToBigQuery(cleanedDataFrame, tableSchema, project_id, dataset_id, table_id)
+    # DISABLED -- enable when you decide to pull.
+    # uploadToBigQuery(cleanedDataFrame, tableSchema, project_id, dataset_id, table_id)
 
     # Archive the source file
     archiveSourceFile(cleanedDataFrame, csv_file, source_folder, table_id)
 
-    print(Fore.GREEN + f"{scriptName} data pull complete.")
+    print(Style.BRIGHT + f"{scriptName} data pull complete.")
 
 
-doWork()
+if __name__ == "__main__":
+    doWork()

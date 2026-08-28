@@ -1,4 +1,6 @@
 from _dataManager import *
+from colorama import init, Fore, Style
+init(autoreset=True)
 
 
 scriptName = "accountBalanceCleaner"
@@ -70,7 +72,7 @@ def clean_data(df):
 
 
 def doWork():
-    print(Fore.YELLOW + f"Starting {scriptName} script...")
+    print(Style.BRIGHT + f"Starting {scriptName} script...")
 
     # Read in the first .csv file found
     csv_file, rawDataFrame = readCSV(source_folder)
@@ -78,13 +80,17 @@ def doWork():
     # Clean the data
     cleanedDataFrame = clean_data(rawDataFrame)
 
-    deleteAllDataFromTable(project_id, dataset_id, table_id)
+    # DISABLED -- delete and upload are ONE operation; enable together.
+
+    # deleteAllDataFromTable(project_id, dataset_id, table_id)
 
     # Upload the data to BigQuery
-    uploadToBigQuery(cleanedDataFrame, schema, project_id, dataset_id, table_id)
+    # DISABLED -- enable when you decide to pull.
+    # uploadToBigQuery(cleanedDataFrame, schema, project_id, dataset_id, table_id)
 
     # Archive the source file
     archiveSourceFile(cleanedDataFrame, csv_file, source_folder, table_id)
 
 
-doWork()
+if __name__ == "__main__":
+    doWork()

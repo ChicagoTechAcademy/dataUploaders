@@ -1,4 +1,6 @@
 from _dataManager import *
+from colorama import init, Fore, Style
+init(autoreset=True)
 
 
 scriptName = "medicalCompliance"
@@ -31,7 +33,7 @@ def clean_data(df):
     """
     Cleans and processes data.
     """
-    print(Fore.RESET + "Cleaning data...")
+    print("Cleaning data...")
 
     entryID = getEntryID()
 
@@ -49,7 +51,7 @@ def clean_data(df):
     # names_query = f"SELECT id, name FROM `student_info.roster`"
     # names_df = fetchDataFromBigQuery(names_query)
 
-    print(Fore.RESET + "Merging data...")
+    print("Merging data...")
 
     # make sure the id column is of type integer
     df["id"] = df["id"].astype(int)
@@ -67,7 +69,7 @@ def doWork():
     """
     Main function for the script.
     """
-    print(Fore.YELLOW + f"Starting {scriptName} script...")
+    print(Style.BRIGHT + f"Starting {scriptName} script...")
 
     # Read in the first .csv file found
     csv_file, rawDataFrame = readCSV(source_folder)
@@ -75,15 +77,19 @@ def doWork():
     # Clean the data
     cleanedDataFrame = clean_data(rawDataFrame)
 
-    deleteAllDataFromTable(project_id, dataset_id, table_id)
+    # DISABLED -- delete and upload are ONE operation; enable together.
+
+    # deleteAllDataFromTable(project_id, dataset_id, table_id)
 
     # Upload the data to BigQuery
-    uploadToBigQuery(cleanedDataFrame, tableSchema, project_id, dataset_id, table_id)
+    # DISABLED -- enable when you decide to pull.
+    # uploadToBigQuery(cleanedDataFrame, tableSchema, project_id, dataset_id, table_id)
 
     # Archive the source file
     archiveSourceFile(cleanedDataFrame, csv_file, source_folder, table_id)
 
-    print(Fore.GREEN + f"{scriptName} script has been completed.")
+    print(Style.BRIGHT + f"{scriptName} script has been completed.")
 
 
-doWork()
+if __name__ == "__main__":
+    doWork()

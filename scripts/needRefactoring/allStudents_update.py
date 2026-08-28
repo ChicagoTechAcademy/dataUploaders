@@ -144,7 +144,8 @@ if csv_files:
         deleteOldDataFromDB(client)
 
         # Upload the DataFrame to BigQuery
-        uploadToBigQuery(df)
+        # DISABLED -- enable when you decide to pull.
+        # uploadToBigQuery(df)
 
         print("Data uploaded to BigQuery table.")
 

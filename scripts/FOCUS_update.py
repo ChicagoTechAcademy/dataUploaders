@@ -1,5 +1,7 @@
 from _dataManager import *
 import os
+from colorama import init, Fore, Style
+init(autoreset=True)
 
 
 scriptName = "FOCUS_update"
@@ -127,15 +129,19 @@ def doWork():
     # Clean the data
     cleanedDataFrame = cleanData(rawDataFrame)
 
-    deleteAllDataFromTable(project_id, dataset_id, table_id)
+    # DISABLED -- delete and upload are ONE operation; enable together.
+
+    # deleteAllDataFromTable(project_id, dataset_id, table_id)
 
     # Upload the data to BigQuery
-    uploadToBigQuery(cleanedDataFrame, schema, project_id, dataset_id, table_id)
+    # DISABLED -- enable when you decide to pull.
+    # uploadToBigQuery(cleanedDataFrame, schema, project_id, dataset_id, table_id)
 
     # Archive the source file
     archiveSourceFile(cleanedDataFrame, csv_file, source_folder, table_id)
 
-    print(Fore.GREEN + f"{scriptName} data pull complete.")
+    print(Style.BRIGHT + f"{scriptName} data pull complete.")
 
 
-doWork()
+if __name__ == "__main__":
+    doWork()

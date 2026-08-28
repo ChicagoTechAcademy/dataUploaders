@@ -1,0 +1,18 @@
+# Line endings. Everything text is LF in the repo and LF on checkout, on every
+# platform. Added 2026-08-27 after CRLF crept into three Python files and made
+# their diffs unreadable (550 changed lines for a 4-line edit).
+* text=auto eol=lf
+
+# Shell scripts and macOS .command wrappers MUST be LF. bash fails with a
+# "\r: command not found" style error if these ever pick up CRLF.
+*.sh        text eol=lf
+*.command   text eol=lf
+*.py        text eol=lf
+
+# Windows batch files are left exactly as they are, no normalization either
+# way. These are slated to be retooled; revisit then.
+*.bat       -text
+
+# Data exports are gitignored, but if one is ever force-added, do not let git
+# rewrite bytes inside a student data file.
+*.csv       -text

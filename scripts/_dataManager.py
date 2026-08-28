@@ -5,6 +5,7 @@ import pandas as pd
 import pandas_gbq
 import google.auth
 import os
+import hashlib
 from colorama import init, Fore, Style
 init(autoreset=True)
 
@@ -77,6 +78,86 @@ def uploadToBigQuery(df, schema, project_id, dataset_id, table_id):
         table_schema=schema,
     )
     print(Style.BRIGHT + Fore.BLUE + "Data has been uploaded to BigQuery.")
+
+
+def parseFlexibleDate(series):
+    """
+    Parses a date column that may be ISO or US, returning dates.
+
+    Branching Minds writes ISO (2025-10-23) straight off the SFTP server, but a
+    file that has been opened and re-saved in Excel comes back as M/D/YY
+    (10/23/25). Both appear in practice, so both are tried -- ISO first, since
+    that is what the untouched export uses.
+
+    Formats are given explicitly rather than left to inference. Left to itself,
+    pandas reads 1/12/26 as 12 January or 1 December depending on what it saw
+    earlier in the column, which silently mis-dates part of a file.
+    """
+    text = series.astype(str).str.strip()
+    out = pd.to_datetime(text, format="%Y-%m-%d", errors="coerce")
+    stillBad = out.isna() & (text != "") & text.notna()
+    if stillBad.any():
+        out = out.fillna(pd.to_datetime(text.where(stillBad), format="%m/%d/%y",
+                                        errors="coerce"))
+    return out.dt.date
+
+
+def selectNewRows(df, key, dataset_id, table_id):
+    """
+    Returns only the rows whose `key` is not already in the warehouse.
+
+    Branching Minds exports its full history on every pull, so a plain append
+    would reload everything each time. This anti-joins the incoming frame against
+    the keys already stored and returns just the remainder.
+
+    Rows are never merged or updated. A row already in the table is left exactly
+    as it was first loaded, so a correction made in the source system after the
+    row was loaded will NOT appear.
+
+    A missing table is treated as an empty one -- correct for a first load, and
+    reported loudly because it is wrong for any other case.
+    """
+    print(Style.BRIGHT + Fore.BLUE + f"Checking what is already in {dataset_id}.{table_id}...")
+    try:
+        existing = fetchDataFromBigQuery(
+            f"SELECT DISTINCT {key} FROM {dataset_id}.{table_id}")
+        known = set(existing[key].astype(str))
+    except Exception as exc:
+        print(Fore.YELLOW + f"  Could not read {dataset_id}.{table_id} "
+                            f"({type(exc).__name__}). Treating every row as new -- "
+                            "correct on a first load, WRONG if the table exists "
+                            "and holds rows.")
+        known = set()
+
+    fresh = df[~df[key].astype(str).isin(known)].copy()
+    print(Fore.BLUE + f"  {len(known)} already stored, {len(df)} in this export, "
+                      f"{len(fresh)} new.")
+    if len(fresh) == 0:
+        print(Fore.YELLOW + "  Nothing new to load.")
+    return fresh
+
+
+def buildRowKey(df, columns):
+    """
+    Builds a stable key for an export that ships no unique id of its own.
+
+    Some Branching Minds exports repeat their id across rows -- intervention
+    notes carry one Intervention Plan ID per plan, several notes each. Hashing
+    the columns that together identify a row gives selectNewRows something to
+    anti-join on.
+
+    The hash is over the cleaned values, so it is stable across pulls as long as
+    the underlying row does not change. If it does change, the row reads as new
+    and will be appended alongside the old one.
+    """
+    # Each column is stringified individually. A frame-wide .astype(str) is not
+    # enough under pandas 3.0: a date or NaN column can survive it as a non-str
+    # object and the join then raises.
+    parts = [df[c].map(lambda v: "" if pd.isna(v) else str(v)) for c in columns]
+    joined = parts[0]
+    for nxt in parts[1:]:
+        joined = joined + "\u241f" + nxt
+    return joined.map(lambda v: hashlib.sha1(v.encode("utf-8")).hexdigest()[:16])
 
 
 def archiveSourceFile(df, sourceFile, sourceFolder, archiveFileName):

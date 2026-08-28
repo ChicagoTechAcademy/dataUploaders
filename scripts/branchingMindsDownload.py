@@ -53,10 +53,24 @@ REPORT_ROUTES = {
     "intervention_report_with_demographics_export": "./branchingMindsDownloads/interventions",
     "intervention_notes_with_demographics_export": "./branchingMindsDownloads/interventionNotes",
     "behavior_progress_monitoring_plans_and_scores": "./branchingMindsDownloads/progressMonitoring",
-    "benchmarks_universal_screeners_w_demographics": "./branchingMindsDownloads/benchmarks",
-    # behavior_incident_report_export is the old, empty version of the incident
-    # report, superseded by new_behavior_incident_report_w_demographics. It is
-    # deliberately unrouted so it lands in STAGING_ROOT and is not loaded.
+}
+
+# Remote subfolders that are NOT downloaded at all.
+#
+# Skipped rather than downloaded-and-ignored: a file sitting in a staging folder
+# with no loader is indistinguishable from one waiting to be processed, and
+# invites someone to "just load it".
+SKIP_REPORTS = {
+    # The old incident report. Superseded by
+    # new_behavior_incident_report_w_demographics and empty in every pull seen
+    # so far -- header row only.
+    "behavior_incident_report_export",
+
+    # Academic assessment data (Academic Approach English / Math / Reading /
+    # Science), not behaviour. 1,420 rows. There is no table for it and it does
+    # not belong in the behavior dataset; if it is ever loaded it goes to
+    # academics. Remove this line and add a REPORT_ROUTES entry at that point.
+    "benchmarks_universal_screeners_w_demographics",
 }
 
 
@@ -141,14 +155,20 @@ def doWork():
             )
 
         print(Fore.BLUE + f"Scanning {REMOTE_BASE} for subfolders...")
-        found = list(remoteCSVs(sftp, REMOTE_BASE))
+        everything = list(remoteCSVs(sftp, REMOTE_BASE))
+
+        found = [(f, n) for f, n in everything if f not in SKIP_REPORTS]
+        skippedReports = sorted({f for f, _ in everything if f in SKIP_REPORTS})
+        for folder in skippedReports:
+            print(Fore.YELLOW + f"  skipping {folder}/ (in SKIP_REPORTS)")
 
         if not found:
             # An empty result used to print "All downloads complete." and exit 0,
             # which is indistinguishable from a successful pull.
             raise SystemExit(
-                Fore.YELLOW + f"No .csv files found under {REMOTE_BASE}. "
-                "Nothing downloaded."
+                Fore.YELLOW + f"No downloadable .csv files under {REMOTE_BASE}"
+                + (f" ({len(skippedReports)} report(s) skipped)." if skippedReports
+                   else ". Nothing downloaded.")
             )
 
         for folder, fileName in found:

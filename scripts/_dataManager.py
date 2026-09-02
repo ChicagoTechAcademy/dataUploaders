@@ -27,6 +27,35 @@ def getCredentials():
         )
     return _credentials
 
+_sheetsCredentials = None
+
+
+def getSheetsCredentials():
+    """
+    Credentials that can ALSO refresh Connected Sheets.
+
+    Deliberately separate from getCredentials(), which stays BigQuery-only. The
+    extra scope is named here and nowhere else, so a grep for "spreadsheets"
+    finds every place the service account can reach a sheet.
+
+    The scope by itself grants nothing: the account still only reaches
+    spreadsheets it has been explicitly shared into. Share sparingly -- one
+    report sheet, not a whole Drive folder.
+
+    Refreshing a Connected Sheets extract re-runs its BigQuery query as the
+    caller, so BOTH scopes are required; a sheets-only credential cannot do it.
+    """
+    global _sheetsCredentials
+    if _sheetsCredentials is None:
+        _sheetsCredentials, _ = google.auth.default(
+            scopes=[
+                "https://www.googleapis.com/auth/bigquery",
+                "https://www.googleapis.com/auth/spreadsheets",
+            ]
+        )
+    return _sheetsCredentials
+
+
 def fetchDataFromBigQuery(query):
     """
     Fetches data from BigQuery and returns a DataFrame.

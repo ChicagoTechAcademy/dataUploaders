@@ -93,7 +93,7 @@ def getEntryID():
     return int(entryID)
 
 def getWeek():
-    return input(Fore.CYAN + "Enter the week/label for this data (W01, EndOfQ1, ...): ")
+    return input(Fore.CYAN + "Enter the week/label for this data (W02, EOW02, ...): ")
 
 
 # Clean the data

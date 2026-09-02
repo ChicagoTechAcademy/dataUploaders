@@ -129,7 +129,11 @@ def readExport(source_folder):
             "Expected a transcript audit export."
         )
 
-    df = pd.DataFrame(rows[1:], columns=header)
+    # Trailing blank lines are ordinary in this export -- csv.reader returns
+    # them as empty lists, which become rows of all-NA and break anything that
+    # expects a string.
+    data = [r for r in rows[1:] if r and any(c.strip() for c in r)]
+    df = pd.DataFrame(data, columns=header)
     print(Fore.GREEN + f"Parsed {len(df)} transcript rows from '{csv_file}'.")
     return csv_file, df
 
@@ -166,7 +170,14 @@ def splitPrefix(description):
     projects, Health Education, competency tests. They satisfy no semester, so
     the marker is None rather than a guess.
     """
-    text = (description or "").strip()
+    # pd.isna, not `or`: a NaN is truthy, so `description or ""` passes the NaN
+    # straight through and .strip() then fails on a float. Under pandas 3.0 an
+    # astype(str) on an Arrow-backed column preserves NA rather than writing the
+    # string "nan", so NA reaches here even after the frame has been stringified.
+    if description is None or (isinstance(description, float) and pd.isna(description)) \
+       or description is pd.NA:
+        return None, ""
+    text = str(description).strip()
     m = PREFIX_RE.match(text)
     if not m:
         return None, text

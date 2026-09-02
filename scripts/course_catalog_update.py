@@ -139,9 +139,12 @@ def splitCreditTypes(raw):
     "Adv Alg/Trig", "Non-Credit: Constitution Exam Graduation Requirement").
     87 distinct values appear across the file.
 
-    The order is CPS's own and is not meaningful, so creditType3 holds no
-    particular kind of thing. Querying for an area means checking all ten
-    columns -- or gradCreditRaw, which is kept verbatim for exactly that.
+    THE ORDER IS A DESCENDING PRIORITY, NOT AN ARBITRARY LIST. A course fills
+    the highest unmet requirement first and only ONE at a time: "RS1 Urban
+    Studies" is [Other Social Science, Career Ed, Elective], so it satisfies
+    Other Social Science if that is outstanding, otherwise Career Ed, otherwise
+    Elective. Preserve the order on load -- it is the whole basis of working out
+    what a student still needs.
     """
     parts = [p.strip() for p in str(raw).split(",") if p.strip()]
     if len(parts) > MAX_CREDIT_TYPES:

@@ -23,6 +23,8 @@ tableSchema = [
     {"name": "slot", "type": "STRING"},
     {"name": "cpsBucket", "type": "STRING"},
     {"name": "creditsRequired", "type": "FLOAT"},
+    {"name": "gradeGenerallyMet", "type": "STRING"},
+    {"name": "expectedByGrade", "type": "INTEGER"},
 ]
 
 ORDERED_COLS = [c["name"] for c in tableSchema]
@@ -38,8 +40,11 @@ ORDERED_COLS = [c["name"] for c in tableSchema]
 
 def buildFrame():
     print(Fore.GREEN + f"Building {len(GRAD_REQUIREMENTS)} requirement slots...")
-    df = pd.DataFrame(GRAD_REQUIREMENTS, columns=["slot", "cpsBucket", "creditsRequired"])
+    df = pd.DataFrame(GRAD_REQUIREMENTS,
+                      columns=["slot", "cpsBucket", "creditsRequired",
+                               "gradeGenerallyMet", "expectedByGrade"])
     df.insert(0, "sortOrder", range(1, len(df) + 1))
+    df["expectedByGrade"] = df["expectedByGrade"].astype("Int64")
     return df[ORDERED_COLS]
 
 

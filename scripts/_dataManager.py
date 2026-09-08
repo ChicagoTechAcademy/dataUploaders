@@ -113,20 +113,29 @@ def parseFlexibleDate(series):
     """
     Parses a date column that may be ISO or US, returning dates.
 
-    Branching Minds writes ISO (2025-10-23) straight off the SFTP server, but a
-    file that has been opened and re-saved in Excel comes back as M/D/YY
-    (10/23/25). Both appear in practice, so both are tried -- ISO first, since
-    that is what the untouched export uses.
+    Three formats appear in practice and all three are tried, in this order:
+
+        %Y-%m-%d   2025-10-23   Branching Minds, straight off the SFTP server
+        %m/%d/%Y   08/27/2026   ASPEN exports, four-digit year
+        %m/%d/%y   10/23/25     any file opened and re-saved in Excel, which
+                                rewrites dates to the locale short form
+
+    Four-digit BEFORE two-digit: "08/27/2026" parsed as %m/%d/%y silently yields
+    year 20, not 2026.
 
     Formats are given explicitly rather than left to inference. Left to itself,
     pandas reads 1/12/26 as 12 January or 1 December depending on what it saw
     earlier in the column, which silently mis-dates part of a file.
     """
     text = series.astype(str).str.strip()
+    blank = (text == "") | text.isna() | (text.str.lower() == "nat")
+
     out = pd.to_datetime(text, format="%Y-%m-%d", errors="coerce")
-    stillBad = out.isna() & (text != "") & text.notna()
-    if stillBad.any():
-        out = out.fillna(pd.to_datetime(text.where(stillBad), format="%m/%d/%y",
+    for fmt in ("%m/%d/%Y", "%m/%d/%y"):
+        stillBad = out.isna() & ~blank
+        if not stillBad.any():
+            break
+        out = out.fillna(pd.to_datetime(text.where(stillBad), format=fmt,
                                         errors="coerce"))
     return out.dt.date
 

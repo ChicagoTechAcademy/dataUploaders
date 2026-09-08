@@ -108,6 +108,7 @@ LOADERS = [
     "at_report_update",
     "half_day_report_update",
     "assignment_upload",
+    "all_assign_by_student_update",
     "latest_grade_entry_update",
     "FOCUS_update",
     "transcript_audit_update",

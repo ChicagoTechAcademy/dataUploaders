@@ -13,9 +13,9 @@ table_id = "accountBalances"
 source_folder = f"../dataUploaders/{table_id}"
 
 schema = [
-    {"name": "entryID", "type": "INTEGER"},
-    {"name": "id", "type": "INTEGER"},
-    {"name": "balance", "type": "FLOAT"},
+    {"name": "ENTRY_ID", "type": "INTEGER"},
+    {"name": "ID", "type": "INTEGER"},
+    {"name": "BALANCE", "type": "FLOAT"},
 ]
 
 
@@ -35,8 +35,8 @@ def clean_data(df):
    
    entryID = getEntryID()
 
-   # delete all columns except the 2nd and 4th
-   df = df.iloc[:, [1, 3]].copy()
+   # keep the statement text (1st column) and the student ID (4th column)
+   df = df.iloc[:, [0, 3]].copy()
 
     # rename the columns
    df.columns = ['TEXT', 'ID']
@@ -44,11 +44,9 @@ def clean_data(df):
     # delete all empty rows
    df = df.dropna(how='all')
 
-    # go through each row in the ID column. When you find a number, check if the next row is blank. If so, copy that number. If not, keep the original value.
-   df = df.reset_index(drop=True)  # Ensure the index is sequential
-   for i in range(len(df) - 1):
-       if pd.notna(df.at[i, 'ID']) and pd.isna(df.at[i + 1, 'ID']):
-           df.at[i + 1, 'ID'] = df.at[i, 'ID']
+    # the ID only appears on the "Student" line at the top of each statement; carry it down to the "This is a..." line
+   df = df.reset_index(drop=True)
+   df['ID'] = df['ID'].ffill()
 
     # go through each row in the TEXT column. If it's not a string, delete that row.
    df = df[df['TEXT'].apply(lambda x: isinstance(x, str))]
@@ -57,7 +55,7 @@ def clean_data(df):
    df = df[df['TEXT'].str.startswith("This is a", na=False)]
 
    # Go through the TEXT column. For each row, extract the number after "$" and convert it to a float
-   df['BALANCE'] = df['TEXT'].str.extract(r'\$ ([\d,]+\.\d{2})')[0].astype(float)
+   df['BALANCE'] = df['TEXT'].str.extract(r'\$ ([\d,]+\.\d{2})')[0].str.replace(',', '').astype(float)
 
    # drop the TEXT column
    df = df.drop(columns=['TEXT'])
@@ -80,13 +78,9 @@ def doWork():
     # Clean the data
     cleanedDataFrame = clean_data(rawDataFrame)
 
-    # DISABLED -- delete and upload are ONE operation; enable together.
-
-    # deleteAllDataFromTable(project_id, dataset_id, table_id)
-
-    # Upload the data to BigQuery
-    # DISABLED -- enable when you decide to pull.
-    # uploadToBigQuery(cleanedDataFrame, schema, project_id, dataset_id, table_id)
+    # Replace-all: the delete and the upload are ONE operation.
+    deleteAllDataFromTable(project_id, dataset_id, table_id)
+    uploadToBigQuery(cleanedDataFrame, schema, project_id, dataset_id, table_id)
 
     # Archive the source file
     archiveSourceFile(cleanedDataFrame, csv_file, source_folder, table_id)

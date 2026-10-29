@@ -15,7 +15,6 @@ source_folder = f"../dataUploaders/{table_id}"
 tableSchema = [
     {"name": "entryID", "type": "INTEGER"},
     {"name": "id", "type": "INTEGER"},
-    {"name": "name", "type": "STRING"},
     {"name": "reason", "type": "STRING"},
 ]
 
@@ -77,13 +76,9 @@ def doWork():
     # Clean the data
     cleanedDataFrame = clean_data(rawDataFrame)
 
-    # DISABLED -- delete and upload are ONE operation; enable together.
-
-    # deleteAllDataFromTable(project_id, dataset_id, table_id)
-
-    # Upload the data to BigQuery
-    # DISABLED -- enable when you decide to pull.
-    # uploadToBigQuery(cleanedDataFrame, tableSchema, project_id, dataset_id, table_id)
+    # Replace-all: the delete and the upload are ONE operation.
+    deleteAllDataFromTable(project_id, dataset_id, table_id)
+    uploadToBigQuery(cleanedDataFrame, tableSchema, project_id, dataset_id, table_id)
 
     # Archive the source file
     archiveSourceFile(cleanedDataFrame, csv_file, source_folder, table_id)
